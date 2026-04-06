@@ -1,0 +1,104 @@
+import { useState } from 'react';
+import { supabase } from '../lib/supabase';
+import { StyleSignal } from '../types/styleSignal';
+import { Listing } from '../types/listing';
+import { useAuthStore } from './useAuthStore';
+
+type SearchState = {
+  isAnalyzing: boolean;
+  isSearching: boolean;
+  searchId: string | null;
+  styleSignals: StyleSignal | null;
+  listings: Listing[];
+  error: string | null;
+};
+
+export function useSearch() {
+  const session = useAuthStore((s) => s.session);
+  const [state, setState] = useState<SearchState>({
+    isAnalyzing: false,
+    isSearching: false,
+    searchId: null,
+    styleSignals: null,
+    listings: [],
+    error: null,
+  });
+
+  async function runSearch(imageUri: string, sizeFilter: string) {
+    setState((s) => ({ ...s, isAnalyzing: true, error: null, listings: [] }));
+
+    try {
+      // Get current session token to explicitly pass to edge functions
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      const authHeader = currentSession?.access_token
+        ? { Authorization: `Bearer ${currentSession.access_token}` }
+        : {};
+
+      // 1. Upload image to Supabase Storage
+      const fileName = `${Date.now()}.jpg`;
+      const fileBlob = await uriToBlob(imageUri);
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('search-images')
+        .upload(fileName, fileBlob, { contentType: 'image/jpeg' });
+
+      if (uploadError) throw new Error(uploadError.message);
+
+      const imagePath = uploadData.path;
+
+      // 2. Get public URL for the uploaded image
+      const { data: { publicUrl } } = supabase.storage
+        .from('search-images')
+        .getPublicUrl(imagePath);
+
+      // 3. Call analyze-image edge function
+      const { data: analyzeData, error: analyzeError } = await supabase.functions.invoke(
+        'analyze-image',
+        { body: { image_url: publicUrl }, headers: authHeader }
+      );
+
+      if (analyzeError) throw new Error(analyzeError.message);
+
+      const styleSignals: StyleSignal = analyzeData.style_signals;
+      setState((s) => ({ ...s, isAnalyzing: false, isSearching: true, styleSignals }));
+
+      // 4. Fetch user's shopping_for preference
+      let shoppingFor = 'womens';
+      if (session?.user.id) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('shopping_for')
+          .eq('id', session.user.id)
+          .single();
+        if (profile?.shopping_for) shoppingFor = profile.shopping_for;
+      }
+
+      // 5. Call search-platforms edge function
+      const { data: searchData, error: searchError } = await supabase.functions.invoke(
+        'search-platforms',
+        { body: { style_signals: styleSignals, size_filter: sizeFilter, image_path: imagePath, shopping_for: shoppingFor }, headers: authHeader }
+      );
+
+      if (searchError) throw new Error(searchError.message);
+
+      setState((s) => ({
+        ...s,
+        isSearching: false,
+        searchId: searchData.search_id,
+        listings: searchData.listings,
+      }));
+
+      return searchData.search_id as string;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Something went wrong';
+      setState((s) => ({ ...s, isAnalyzing: false, isSearching: false, error: message }));
+      return null;
+    }
+  }
+
+  return { ...state, runSearch };
+}
+
+async function uriToBlob(uri: string): Promise<Blob> {
+  const response = await fetch(uri);
+  return response.blob();
+}

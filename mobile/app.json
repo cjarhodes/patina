@@ -1,0 +1,54 @@
+{
+  "expo": {
+    "name": "Patina",
+    "slug": "patina",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F5F0EB"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.patina.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#F5F0EB"
+      },
+      "package": "com.patina.app",
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Patina needs access to your photos to find vintage matches for your outfits.",
+          "cameraPermission": "Patina needs camera access to photograph outfits and find vintage matches."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#8B6F47"
+        }
+      ]
+    ],
+    "scheme": "patina",
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
