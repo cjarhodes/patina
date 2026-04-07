@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Alert,
   Linking,
   Share,
+  RefreshControl,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
@@ -18,6 +19,9 @@ import { Listing } from '../../types/listing';
 import { StyleSignal } from '../../types/styleSignal';
 import { ResultCard } from '../../components/ResultCard';
 import { StyleSignalCard } from '../../components/StyleSignalCard';
+import { SkeletonGrid } from '../../components/SkeletonCard';
+import { ErrorState } from '../../components/ErrorState';
+import { FilterSortBar, SortOption, PlatformFilter } from '../../components/FilterSortBar';
 import { buildAffiliateUrl } from '../../lib/affiliateLinks';
 import { useSavedSearches } from '../../hooks/useSavedSearches';
 
@@ -25,6 +29,9 @@ export default function ResultsScreen() {
   const { searchId } = useLocalSearchParams<{ searchId: string }>();
   const { saveSearch, savedSearches } = useSavedSearches();
   const [saving, setSaving] = useState(false);
+  const [sort, setSort] = useState<SortOption>('relevance');
+  const [platformFilter, setPlatformFilter] = useState<PlatformFilter>('all');
+  const [refreshing, setRefreshing] = useState(false);
 
   const isSaved = savedSearches.some((s) => (s.searches as any)?.id === searchId);
 
@@ -45,7 +52,7 @@ export default function ResultsScreen() {
   const styleSignals = searchMeta?.style_signals as StyleSignal | undefined;
 
   // Fetch listings
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['results', searchId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -58,6 +65,39 @@ export default function ResultsScreen() {
       return data as Listing[];
     },
   });
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refetch();
+    setRefreshing(false);
+  }, [refetch]);
+
+  // Apply platform filter and sort
+  const filteredData = useMemo(() => {
+    if (!data) return [];
+    let results = [...data];
+
+    // Platform filter
+    if (platformFilter !== 'all') {
+      results = results.filter((item) => item.platform === platformFilter);
+    }
+
+    // Sort
+    switch (sort) {
+      case 'price_asc':
+        results.sort((a, b) => a.price_usd - b.price_usd);
+        break;
+      case 'price_desc':
+        results.sort((a, b) => b.price_usd - a.price_usd);
+        break;
+      case 'relevance':
+      default:
+        results.sort((a, b) => b.relevance_score - a.relevance_score);
+        break;
+    }
+
+    return results;
+  }, [data, sort, platformFilter]);
 
   async function handleSaveSearch() {
     if (!searchId) return;
@@ -96,6 +136,12 @@ export default function ResultsScreen() {
         We may earn a commission on purchases · results from eBay & Etsy
       </Text>
       {styleSignals && <StyleSignalCard signals={styleSignals} />}
+      <FilterSortBar
+        sort={sort}
+        onSortChange={setSort}
+        platformFilter={platformFilter}
+        onPlatformFilterChange={setPlatformFilter}
+      />
     </>
   );
 
@@ -121,14 +167,13 @@ export default function ResultsScreen() {
         {isSaved && <Text style={styles.savedLabel}>Saved</Text>}
       </View>
 
-      {isLoading && (
-        <ActivityIndicator size="large" color="#8B6F47" style={{ flex: 1 }} />
-      )}
+      {isLoading && <SkeletonGrid />}
 
       {error && (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Couldn't load results. Please try again.</Text>
-        </View>
+        <ErrorState
+          message="Couldn't load results. Check your connection and try again."
+          onRetry={() => refetch()}
+        />
       )}
 
       {data && data.length === 0 && (
@@ -143,12 +188,28 @@ export default function ResultsScreen() {
 
       {data && data.length > 0 && (
         <FlatList
-          data={data}
+          data={filteredData}
           keyExtractor={(item) => item.id}
           numColumns={2}
           ListHeaderComponent={headerComponent}
           contentContainerStyle={styles.grid}
           columnWrapperStyle={styles.row}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="#8B6F47"
+              colors={['#8B6F47']}
+            />
+          }
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Text style={styles.emptyTitle}>No results for this filter</Text>
+              <Text style={styles.emptyBody}>
+                Try selecting a different platform or sort option.
+              </Text>
+            </View>
+          }
           renderItem={({ item }) => (
             <ResultCard
               listing={item}

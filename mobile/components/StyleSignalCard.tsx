@@ -4,6 +4,8 @@ import { StyleSignal } from '../types/styleSignal';
 type Props = { signals: StyleSignal };
 
 export function StyleSignalCard({ signals }: Props) {
+  const hasBrand = !!signals.brand;
+
   const tags = [
     signals.garment_type,
     signals.decade_range !== 'vintage' ? signals.decade_range : null,
@@ -12,11 +14,21 @@ export function StyleSignalCard({ signals }: Props) {
     ...signals.fabric_indicators.slice(0, 2),
   ].filter(Boolean);
 
-  if (tags.length === 0) return null;
+  if (tags.length === 0 && !hasBrand) return null;
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Style detected</Text>
+      {hasBrand && (
+        <View style={styles.brandRow}>
+          <View style={styles.brandTag}>
+            <Text style={styles.brandText}>{signals.brand}</Text>
+          </View>
+          {signals.style_reference ? (
+            <Text style={styles.styleRef}>{signals.style_reference}</Text>
+          ) : null}
+        </View>
+      )}
+      <Text style={styles.label}>{hasBrand ? 'Style details' : 'Style detected'}</Text>
       <View style={styles.tags}>
         {tags.map((tag, i) => (
           <View key={i} style={styles.tag}>
@@ -37,6 +49,30 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderWidth: 1,
     borderColor: '#E0D8D0',
+  },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 12,
+  },
+  brandTag: {
+    backgroundColor: '#3D2B1F',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+  },
+  brandText: {
+    fontSize: 14,
+    color: '#FFF',
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  styleRef: {
+    fontSize: 13,
+    color: '#8B6F47',
+    fontWeight: '500',
+    fontStyle: 'italic',
   },
   label: {
     fontSize: 11,

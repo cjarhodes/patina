@@ -28,6 +28,8 @@ type StyleSignal = {
   dominant_colors: string[];
   fabric_indicators: string[];
   search_keywords: string[];
+  brand: string;
+  style_reference: string;
 };
 
 type Listing = {
@@ -56,10 +58,10 @@ async function searchEbay(signals: StyleSignal, sizeFilter: string, shoppingFor 
 
   const vintageSizes = getVintageSizeRange(sizeFilter);
   const query = [
-    'vintage',
+    signals.brand || 'vintage',
     signals.decade_range !== 'vintage' ? signals.decade_range : '',
     signals.garment_type,
-    signals.silhouette,
+    signals.brand ? '' : signals.silhouette,  // skip silhouette when brand is specific enough
     signals.dominant_colors[0] ?? '',
   ].filter(Boolean).join(' ');
 
@@ -111,11 +113,11 @@ async function searchEtsy(signals: StyleSignal, sizeFilter: string, shoppingFor 
 
   const vintageSizes = getVintageSizeRange(sizeFilter);
   const keywords = [
-    'vintage',
+    signals.brand || 'vintage',
     signals.decade_range !== 'vintage' ? signals.decade_range : '',
     shoppingFor === 'mens' ? "men's" : shoppingFor === 'both' ? '' : "women's",
     signals.garment_type,
-    signals.dominant_colors[0] ?? '',
+    signals.brand ? '' : (signals.dominant_colors[0] ?? ''),  // skip color when brand narrows results
   ].filter(Boolean).join(' ');
 
   // Etsy taxonomy IDs: 68887889 = Women's Clothing, 68887893 = Men's Clothing
@@ -169,11 +171,37 @@ function deduplicate(listings: Listing[]): Listing[] {
   });
 }
 
+// Style keyword mappings — used to boost results matching user's style preferences
+const STYLE_KEYWORDS: Record<string, string[]> = {
+  bohemian: ['boho', 'bohemian', 'peasant', 'flowy', 'embroidered', 'fringe', 'macrame'],
+  preppy: ['preppy', 'polo', 'blazer', 'plaid', 'argyle', 'oxford', 'cable knit', 'brooks brothers'],
+  minimalist: ['minimal', 'clean', 'simple', 'structured', 'monochrome', 'tailored'],
+  grunge: ['grunge', 'flannel', 'distressed', 'oversized', 'plaid', 'nirvana', 'torn'],
+  mod: ['mod', '60s', 'shift dress', 'go-go', 'geometric', 'twiggy', 'A-line'],
+  western: ['western', 'cowboy', 'fringe', 'turquoise', 'denim', 'ranch', 'rodeo'],
+  streetwear: ['streetwear', 'graphic', 'hoodie', 'sneaker', 'supreme', 'stussy', 'skate'],
+  romantic: ['romantic', 'lace', 'floral', 'ruffle', 'silk', 'chiffon', 'Victorian'],
+  workwear: ['workwear', 'carhartt', 'duck canvas', 'denim', 'chore coat', 'utility', 'overalls'],
+  country: ['country', 'barbour', 'waxed', 'tweed', 'plaid', 'field', 'hunting'],
+  athleisure: ['athletic', 'track', 'windbreaker', 'fleece', 'pullover', 'adidas', 'nike'],
+  punk: ['punk', 'leather', 'studs', 'band tee', 'safety pin', 'tartan', 'doc martens'],
+};
+
 // ---- Score listings by relevance ----
-function scoreListings(listings: Listing[], signals: StyleSignal): Listing[] {
+function scoreListings(
+  listings: Listing[],
+  signals: StyleSignal,
+  stylePreferences: string[] = [],
+  favoriteDecades: string[] = [],
+): Listing[] {
   return listings.map((l) => {
     let score = 0.5;
     const titleLower = l.title.toLowerCase();
+
+    // Boost for brand match (strongest signal)
+    if (signals.brand && titleLower.includes(signals.brand.toLowerCase())) {
+      score += 0.3;
+    }
 
     // Boost for keyword matches
     for (const kw of signals.search_keywords) {
@@ -183,6 +211,24 @@ function scoreListings(listings: Listing[], signals: StyleSignal): Listing[] {
     // Boost for decade mention
     if (signals.decade_range !== 'vintage' && titleLower.includes(signals.decade_range.replace('s', ''))) {
       score += 0.15;
+    }
+
+    // Boost for user's favorite decades
+    for (const decade of favoriteDecades) {
+      if (titleLower.includes(decade.replace('s', ''))) {
+        score += 0.1;
+      }
+    }
+
+    // Boost for user's style preferences
+    for (const style of stylePreferences) {
+      const keywords = STYLE_KEYWORDS[style] ?? [];
+      for (const kw of keywords) {
+        if (titleLower.includes(kw.toLowerCase())) {
+          score += 0.08;
+          break; // only one boost per style
+        }
+      }
     }
 
     // Boost for explicit "vintage" label
@@ -221,7 +267,7 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
     }
 
-    const { style_signals, size_filter, image_path, shopping_for } = await req.json();
+    const { style_signals, size_filter, image_path, shopping_for, style_preferences, favorite_decades } = await req.json();
 
     if (!style_signals) {
       return new Response(JSON.stringify({ error: 'style_signals is required' }), { status: 400 });
@@ -269,7 +315,8 @@ serve(async (req) => {
       const garment = style_signals?.garment_type ?? 'clothing';
       const color = style_signals?.dominant_colors?.[0] ?? '';
       const decade = style_signals?.decade_range !== 'vintage' ? (style_signals?.decade_range ?? '') : '';
-      const label = [decade, color, garment].filter(Boolean).join(' ');
+      const brand = style_signals?.brand ?? '';
+      const label = [brand, decade, color, garment].filter(Boolean).join(' ');
       allListings = [
         { platform: 'etsy', external_id: 'mock-1', title: `Vintage ${label} — 1970s floral wrap dress`, price_usd: 48, size_label: size_filter ?? 'M', condition: 'pre-owned', thumbnail_url: 'https://i.etsystatic.com/isla/d4a5c0/51756383/isla_570xN.51756383_3l7c.jpg', listing_url: 'https://www.etsy.com/listing/1234567890', relevance_score: 0.9 },
         { platform: 'etsy', external_id: 'mock-2', title: `Vintage ${label} — 1960s mod shift dress`, price_usd: 34, size_label: size_filter ?? 'M', condition: 'pre-owned', thumbnail_url: 'https://i.etsystatic.com/isla/d4a5c0/51756383/isla_570xN.51756383_3l7c.jpg', listing_url: 'https://www.etsy.com/listing/1234567891', relevance_score: 0.85 },
@@ -280,7 +327,7 @@ serve(async (req) => {
     }
 
     const deduped = deduplicate(allListings);
-    const scored = scoreListings(deduped, style_signals);
+    const scored = scoreListings(deduped, style_signals, style_preferences ?? [], favorite_decades ?? []);
 
     // Persist listings to DB
     if (scored.length > 0) {

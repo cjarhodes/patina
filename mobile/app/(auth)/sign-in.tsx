@@ -32,9 +32,21 @@ export default function SignInScreen() {
         if (error) throw error;
         Alert.alert('Check your email for a confirmation link!');
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        router.replace('/(tabs)');
+
+        // Check if user has completed onboarding
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('onboarding_complete')
+          .eq('id', data.user.id)
+          .single();
+
+        if (!profile?.onboarding_complete) {
+          router.replace('/(auth)/onboarding');
+        } else {
+          router.replace('/(tabs)');
+        }
       }
     } catch (err: any) {
       Alert.alert('Error', err.message);

@@ -1,3 +1,4 @@
+import { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -8,13 +9,22 @@ import {
   Alert,
   ActivityIndicator,
   Image,
+  RefreshControl,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSavedSearches } from '../../hooks/useSavedSearches';
 import { supabase } from '../../lib/supabase';
+import { SkeletonList } from '../../components/SkeletonCard';
 
 export default function SavedScreen() {
-  const { savedSearches, isLoading, removeSearch } = useSavedSearches();
+  const { savedSearches, isLoading, refetch, removeSearch } = useSavedSearches();
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refetch();
+    setRefreshing(false);
+  }, [refetch]);
 
   function confirmRemove(savedSearchId: string) {
     Alert.alert('Remove saved search?', "You'll stop receiving alerts for this search.", [
@@ -30,7 +40,10 @@ export default function SavedScreen() {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
-        <ActivityIndicator style={{ flex: 1 }} color="#8B6F47" />
+        <View style={styles.header}>
+          <Text style={styles.title}>Saved Searches</Text>
+        </View>
+        <SkeletonList />
       </SafeAreaView>
     );
   }
@@ -60,6 +73,14 @@ export default function SavedScreen() {
           data={savedSearches}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="#8B6F47"
+              colors={['#8B6F47']}
+            />
+          }
           renderItem={({ item }) => {
             const search = item.searches as any;
             const signals = search?.style_signals;

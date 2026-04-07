@@ -5,4 +5,6 @@ export type StyleSignal = {
   dominant_colors: string[];   // e.g. ["burnt orange", "cream"]
   fabric_indicators: string[]; // e.g. ["sheer", "structured"]
   search_keywords: string[];   // generated keywords for API queries
+  brand: string;               // e.g. "Barbour", "Levi's", "" if unknown
+  style_reference: string;     // e.g. "Barbour country", "Levi's workwear"
 };

@@ -33,7 +33,7 @@ export default function ProfileScreen() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('size_label, shopping_for')
+        .select('size_label, shopping_for, style_preferences, favorite_decades')
         .eq('id', session!.user.id)
         .single();
       if (error) throw error;
@@ -113,6 +113,24 @@ export default function ProfileScreen() {
           )}
         </View>
 
+        {(profile?.style_preferences?.length > 0 || profile?.favorite_decades?.length > 0) && (
+          <View style={styles.section}>
+            <Text style={styles.label}>My style</Text>
+            <View style={styles.tagRow}>
+              {(profile.style_preferences ?? []).map((s: string) => (
+                <View key={s} style={styles.tag}>
+                  <Text style={styles.tagText}>{s}</Text>
+                </View>
+              ))}
+              {(profile.favorite_decades ?? []).map((d: string) => (
+                <View key={d} style={styles.tag}>
+                  <Text style={styles.tagText}>{d}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
         <View style={styles.footer}>
           <TouchableOpacity style={styles.signOutButton} onPress={signOut}>
             <Text style={styles.signOutText}>Sign out</Text>
@@ -158,4 +176,12 @@ const styles = StyleSheet.create({
   },
   signOutText: { color: '#C0392B', fontSize: 15, fontWeight: '500' },
   disclosure: { fontSize: 11, color: '#C4B5A5', textAlign: 'center', lineHeight: 18 },
+  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  tag: {
+    backgroundColor: '#F0E8DE',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  tagText: { fontSize: 13, color: '#8B6F47', fontWeight: '500', textTransform: 'capitalize' },
 });

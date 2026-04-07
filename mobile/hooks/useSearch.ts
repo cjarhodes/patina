@@ -67,21 +67,35 @@ export function useSearch() {
       const styleSignals: StyleSignal = analyzeData.style_signals;
       setState((s) => ({ ...s, isAnalyzing: false, isSearching: true, styleSignals }));
 
-      // 4. Fetch user's shopping_for preference
+      // 4. Fetch user's profile preferences
       let shoppingFor = 'womens';
+      let stylePreferences: string[] = [];
+      let favoriteDecades: string[] = [];
       if (session?.user.id) {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('shopping_for')
+          .select('shopping_for, style_preferences, favorite_decades')
           .eq('id', session.user.id)
           .single();
         if (profile?.shopping_for) shoppingFor = profile.shopping_for;
+        if (profile?.style_preferences) stylePreferences = profile.style_preferences;
+        if (profile?.favorite_decades) favoriteDecades = profile.favorite_decades;
       }
 
       // 5. Call search-platforms edge function
       const { data: searchData, error: searchError } = await supabase.functions.invoke(
         'search-platforms',
-        { body: { style_signals: styleSignals, size_filter: sizeFilter, image_path: imagePath, shopping_for: shoppingFor }, headers: authHeader }
+        {
+          body: {
+            style_signals: styleSignals,
+            size_filter: sizeFilter,
+            image_path: imagePath,
+            shopping_for: shoppingFor,
+            style_preferences: stylePreferences,
+            favorite_decades: favoriteDecades,
+          },
+          headers: authHeader,
+        }
       );
 
       if (searchError) throw new Error(searchError.message);

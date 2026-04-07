@@ -6,7 +6,7 @@ export function useSavedSearches() {
   const session = useAuthStore((s) => s.session);
   const queryClient = useQueryClient();
 
-  const { data: savedSearches = [], isLoading } = useQuery({
+  const { data: savedSearches = [], isLoading, refetch } = useQuery({
     queryKey: ['saved-searches', session?.user.id],
     enabled: !!session,
     queryFn: async () => {
@@ -58,5 +58,5 @@ export function useSavedSearches() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['saved-searches'] }),
   });
 
-  return { savedSearches, isLoading, saveSearch, removeSearch };
+  return { savedSearches, isLoading, refetch, saveSearch, removeSearch };
 }
