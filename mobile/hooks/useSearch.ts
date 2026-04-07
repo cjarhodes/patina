@@ -216,6 +216,55 @@ export function useSearch() {
     }
   }
 
-  return { ...state, runSearch, findSimilar };
+  async function refineSearch(
+    originalStyleSignals: any,
+    originalImagePath: string,
+    newSizeFilter: string,
+    extraKeywords?: string,
+  ): Promise<string | null> {
+    try {
+      setState((s) => ({ ...s, isSearching: true, error: null }));
+      trackEvent('refine_search_started', { size_filter: newSizeFilter, has_extra_keywords: !!extraKeywords });
+
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      if (!currentSession) throw new Error('Not signed in');
+
+      // Fetch user preferences
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('shopping_for, style_preferences, favorite_decades')
+        .eq('id', currentSession.user.id)
+        .single();
+
+      const res = await supabase.functions.invoke('search-platforms', {
+        body: {
+          style_signals: originalStyleSignals,
+          size_filter: newSizeFilter,
+          image_path: originalImagePath,
+          shopping_for: profile?.shopping_for ?? 'womens',
+          style_preferences: profile?.style_preferences ?? [],
+          favorite_decades: profile?.favorite_decades ?? [],
+          extra_keywords: extraKeywords ?? '',
+        },
+        headers: { Authorization: `Bearer ${currentSession.access_token}` },
+      });
+
+      if (res.error) throw res.error;
+
+      trackEvent('refine_search_completed', {
+        search_id: res.data?.search_id,
+        listing_count: res.data?.listings?.length ?? 0,
+      });
+      return res.data?.search_id ?? null;
+    } catch (err: any) {
+      const message = err instanceof Error ? err.message : 'Search failed';
+      setState((s) => ({ ...s, error: message }));
+      return null;
+    } finally {
+      setState((s) => ({ ...s, isSearching: false }));
+    }
+  }
+
+  return { ...state, runSearch, findSimilar, refineSearch };
 }
 

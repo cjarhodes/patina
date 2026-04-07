@@ -6,6 +6,8 @@ export type FavoriteItem = {
   id: string;
   listing_id: string;
   created_at: string;
+  last_known_price: number | null;
+  price_alert_enabled: boolean;
   listings: {
     id: string;
     search_id: string;
@@ -37,7 +39,7 @@ export function useFavorites() {
       if (!userId) return [];
       const { data, error } = await supabase
         .from('favorites')
-        .select('id, listing_id, created_at, listings(*)')
+        .select('id, listing_id, created_at, last_known_price, price_alert_enabled, listings(*)')
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
 

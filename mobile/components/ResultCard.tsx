@@ -9,6 +9,7 @@ type Props = {
   onFindSimilar?: () => void;
   isFavorited?: boolean;
   onToggleFavorite?: () => void;
+  priceDrop?: number;
 };
 
 function MatchDots({ score }: { score: number }) {
@@ -22,7 +23,7 @@ function MatchDots({ score }: { score: number }) {
   );
 }
 
-export function ResultCard({ listing, onPress, onLongPress, onFindSimilar, isFavorited, onToggleFavorite }: Props) {
+export function ResultCard({ listing, onPress, onLongPress, onFindSimilar, isFavorited, onToggleFavorite, priceDrop }: Props) {
   return (
     <TouchableOpacity
       style={styles.card}
@@ -55,6 +56,11 @@ export function ResultCard({ listing, onPress, onLongPress, onFindSimilar, isFav
         <View style={styles.priceTag}>
           <Text style={styles.priceText}>${listing.price_usd.toFixed(0)}</Text>
         </View>
+        {priceDrop != null && priceDrop > 0 && (
+          <View style={styles.priceDropTag}>
+            <Text style={styles.priceDropTagText}>{'\u2193'}${priceDrop.toFixed(0)}</Text>
+          </View>
+        )}
       </View>
       <View style={styles.info}>
         <Text style={styles.title} numberOfLines={2}>{listing.title}</Text>
@@ -124,6 +130,20 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   priceText: { color: '#FFF', fontSize: 15, fontWeight: '700' },
+  priceDropTag: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    backgroundColor: '#27AE60',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  priceDropTagText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
   info: { padding: 10 },
   title: { fontSize: 12, color: '#6B5B4E', lineHeight: 17 },
   meta: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 8 },

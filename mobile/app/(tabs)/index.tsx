@@ -9,22 +9,33 @@ import {
   ScrollView,
   Image,
   FlatList,
+  Linking,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { useSearch } from '../../hooks/useSearch';
 import { useSearchHistory } from '../../hooks/useSearchHistory';
+import { useTrending } from '../../hooks/useTrending';
+import { useStyleFeed } from '../../hooks/useStyleFeed';
 import { SizeSelector } from '../../components/SizeSelector';
 import { AnalyzingOverlay } from '../../components/AnalyzingOverlay';
 import { SearchHistoryCard } from '../../components/SearchHistoryCard';
+import { TrendingChip } from '../../components/TrendingChip';
+import { StyleFeedCard } from '../../components/StyleFeedCard';
 
 export default function HomeScreen() {
   const [selectedSize, setSelectedSize] = useState('M');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const { isAnalyzing, isSearching, error, runSearch } = useSearch();
   const { history } = useSearchHistory();
+  const { trending } = useTrending();
+  const { feed } = useStyleFeed();
 
   const isLoading = isAnalyzing || isSearching;
+
+  function openFeedItem(listing: any) {
+    Linking.openURL(listing.listing_url);
+  }
 
   async function pickFromLibrary() {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -115,6 +126,45 @@ export default function HomeScreen() {
               </View>
             )}
 
+            {feed.length > 0 && (
+              <View style={styles.feedSection}>
+                <Text style={styles.feedLabel}>For your style</Text>
+                <FlatList
+                  data={feed}
+                  keyExtractor={(item) => item.id}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  renderItem={({ item }) => (
+                    <StyleFeedCard
+                      listing={item}
+                      onPress={() => openFeedItem(item)}
+                    />
+                  )}
+                />
+              </View>
+            )}
+
+            {trending.length > 0 && (
+              <View style={styles.trendingSection}>
+                <Text style={styles.trendingLabel}>Trending now</Text>
+                <FlatList
+                  data={trending}
+                  keyExtractor={(item, i) => `${item.garment_type}-${i}`}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  renderItem={({ item }) => (
+                    <TrendingChip
+                      item={item}
+                      onPress={() => {
+                        // For now, trending chips are informational — they show what's popular
+                        // In future, they could trigger a text-based search
+                      }}
+                    />
+                  )}
+                />
+              </View>
+            )}
+
             <Text style={styles.tip}>
               Tip: Screenshots of outfits from Pinterest, Instagram, or magazines work great.
             </Text>
@@ -158,6 +208,24 @@ const styles = StyleSheet.create({
   error: { color: '#C0392B', fontSize: 14, textAlign: 'center', marginTop: 16 },
   historySection: { marginTop: 8, marginBottom: 16 },
   historyLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#9E9E9E',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 12,
+  },
+  feedSection: { marginTop: 16, marginBottom: 8 },
+  feedLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#9E9E9E',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 12,
+  },
+  trendingSection: { marginTop: 16, marginBottom: 16 },
+  trendingLabel: {
     fontSize: 12,
     fontWeight: '600',
     color: '#9E9E9E',

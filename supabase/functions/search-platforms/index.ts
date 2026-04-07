@@ -267,10 +267,16 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
     }
 
-    const { style_signals, size_filter, image_path, shopping_for, style_preferences, favorite_decades } = await req.json();
+    const { style_signals, size_filter, image_path, shopping_for, style_preferences, favorite_decades, extra_keywords } = await req.json();
 
     if (!style_signals) {
       return new Response(JSON.stringify({ error: 'style_signals is required' }), { status: 400 });
+    }
+
+    // Merge any user-provided extra keywords into search signals
+    if (extra_keywords && typeof extra_keywords === 'string' && extra_keywords.trim()) {
+      const extraKws = extra_keywords.split(/[,\s]+/).filter(Boolean);
+      style_signals.search_keywords = [...(style_signals.search_keywords ?? []), ...extraKws];
     }
 
     // Ensure profile exists (user may have skipped onboarding)
