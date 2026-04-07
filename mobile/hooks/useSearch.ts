@@ -1,8 +1,11 @@
 import { useState } from 'react';
+import * as FileSystem from 'expo-file-system/legacy';
+import { decode } from 'base64-arraybuffer';
 import { supabase } from '../lib/supabase';
 import { StyleSignal } from '../types/styleSignal';
 import { Listing } from '../types/listing';
 import { useAuthStore } from './useAuthStore';
+import { trackEvent } from '../lib/analytics';
 
 type SearchState = {
   isAnalyzing: boolean;
@@ -26,6 +29,7 @@ export function useSearch() {
 
   async function runSearch(imageUri: string, sizeFilter: string) {
     setState((s) => ({ ...s, isAnalyzing: true, error: null, listings: [] }));
+    trackEvent('search_started', { size_filter: sizeFilter });
 
     try {
       // Get current session token to explicitly pass to edge functions
@@ -34,12 +38,14 @@ export function useSearch() {
         ? { Authorization: `Bearer ${currentSession.access_token}` }
         : {};
 
-      // 1. Upload image to Supabase Storage
+      // 1. Upload image to Supabase Storage (read as base64 for React Native compatibility)
       const fileName = `${Date.now()}.jpg`;
-      const fileBlob = await uriToBlob(imageUri);
+      const base64 = await FileSystem.readAsStringAsync(imageUri, {
+        encoding: 'base64' as any,
+      });
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('search-images')
-        .upload(fileName, fileBlob, { contentType: 'image/jpeg' });
+        .upload(fileName, decode(base64), { contentType: 'image/jpeg' });
 
       if (uploadError) throw new Error(uploadError.message);
 
@@ -87,6 +93,11 @@ export function useSearch() {
         listings: searchData.listings,
       }));
 
+      trackEvent('search_completed', {
+        search_id: searchData.search_id,
+        listing_count: searchData.listings?.length ?? 0,
+        garment_type: styleSignals?.garment_type ?? 'unknown',
+      });
       return searchData.search_id as string;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Something went wrong';
@@ -98,7 +109,3 @@ export function useSearch() {
   return { ...state, runSearch };
 }
 
-async function uriToBlob(uri: string): Promise<Blob> {
-  const response = await fetch(uri);
-  return response.blob();
-}

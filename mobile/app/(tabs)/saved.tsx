@@ -7,15 +7,17 @@ import {
   SafeAreaView,
   Alert,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSavedSearches } from '../../hooks/useSavedSearches';
+import { supabase } from '../../lib/supabase';
 
 export default function SavedScreen() {
   const { savedSearches, isLoading, removeSearch } = useSavedSearches();
 
   function confirmRemove(savedSearchId: string) {
-    Alert.alert('Remove saved search?', 'You\'ll stop receiving alerts for this search.', [
+    Alert.alert('Remove saved search?', "You'll stop receiving alerts for this search.", [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Remove',
@@ -42,6 +44,9 @@ export default function SavedScreen() {
 
       {savedSearches.length === 0 ? (
         <View style={styles.empty}>
+          <View style={styles.emptyIcon}>
+            <View style={styles.emptyHeart} />
+          </View>
           <Text style={styles.emptyTitle}>No saved searches yet</Text>
           <Text style={styles.emptyBody}>
             After a search, tap "Save" to get daily alerts when new vintage pieces matching your style appear.
@@ -58,22 +63,35 @@ export default function SavedScreen() {
           renderItem={({ item }) => {
             const search = item.searches as any;
             const signals = search?.style_signals;
+            const imagePath = search?.image_storage_path;
+            const publicUrl = imagePath
+              ? supabase.storage.from('search-images').getPublicUrl(imagePath).data.publicUrl
+              : null;
+
             return (
               <TouchableOpacity
                 style={styles.card}
                 onPress={() => router.push(`/results/${search.id}`)}
               >
+                {publicUrl && (
+                  <Image source={{ uri: publicUrl }} style={styles.cardImage} />
+                )}
                 <View style={styles.cardContent}>
                   <Text style={styles.cardTitle}>
-                    {signals?.garment_type ?? 'Vintage piece'} · {search?.size_filter ?? ''}
+                    {signals?.garment_type ?? 'Vintage piece'}
                   </Text>
                   <Text style={styles.cardMeta}>
-                    {signals?.decade_range ? `${signals.decade_range} · ` : ''}
-                    {signals?.dominant_colors?.slice(0, 2).join(', ') ?? ''}
+                    {[
+                      signals?.decade_range !== 'vintage' ? signals?.decade_range : null,
+                      ...(signals?.dominant_colors?.slice(0, 2) ?? []),
+                    ].filter(Boolean).join(' · ') || 'Vintage style'}
                   </Text>
-                  <Text style={styles.cardDate}>
-                    Saved {new Date(search?.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                  </Text>
+                  <View style={styles.cardFooter}>
+                    <Text style={styles.cardSize}>Size {search?.size_filter ?? ''}</Text>
+                    <Text style={styles.cardDate}>
+                      {new Date(search?.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </Text>
+                  </View>
                 </View>
                 <TouchableOpacity
                   style={styles.removeButton}
@@ -100,19 +118,42 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: '#FFF',
     borderRadius: 14,
-    padding: 18,
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#E0D8D0',
+    overflow: 'hidden',
   },
-  cardContent: { flex: 1 },
-  cardTitle: { fontSize: 15, fontWeight: '600', color: '#3D2B1F', textTransform: 'capitalize' },
-  cardMeta: { fontSize: 13, color: '#8B6F47', marginTop: 4, textTransform: 'capitalize' },
-  cardDate: { fontSize: 12, color: '#9E9E9E', marginTop: 6 },
-  removeButton: { padding: 8 },
+  cardImage: {
+    width: 72,
+    height: 96,
+    backgroundColor: '#F0EAE4',
+  },
+  cardContent: { flex: 1, padding: 14 },
+  cardTitle: { fontSize: 16, fontWeight: '600', color: '#3D2B1F', textTransform: 'capitalize' },
+  cardMeta: { fontSize: 13, color: '#8B6F47', marginTop: 3, textTransform: 'capitalize' },
+  cardFooter: { flexDirection: 'row', gap: 12, marginTop: 8 },
+  cardSize: { fontSize: 12, color: '#9E9E9E' },
+  cardDate: { fontSize: 12, color: '#9E9E9E' },
+  removeButton: { padding: 16 },
   removeText: { fontSize: 16, color: '#C4B5A5' },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
+  emptyIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#F0E8DE',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  emptyHeart: {
+    width: 24,
+    height: 22,
+    borderRadius: 4,
+    borderWidth: 2.5,
+    borderColor: '#C4B5A5',
+  },
   emptyTitle: { fontSize: 18, fontWeight: '600', color: '#3D2B1F', marginBottom: 12 },
   emptyBody: { fontSize: 14, color: '#6B5B4E', textAlign: 'center', lineHeight: 22, marginBottom: 32 },
   cta: { backgroundColor: '#8B6F47', borderRadius: 12, paddingVertical: 14, paddingHorizontal: 32 },

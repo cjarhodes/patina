@@ -5,18 +5,24 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
-  ActivityIndicator,
   SafeAreaView,
   ScrollView,
+  Image,
+  FlatList,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { useSearch } from '../../hooks/useSearch';
+import { useSearchHistory } from '../../hooks/useSearchHistory';
 import { SizeSelector } from '../../components/SizeSelector';
+import { AnalyzingOverlay } from '../../components/AnalyzingOverlay';
+import { SearchHistoryCard } from '../../components/SearchHistoryCard';
 
 export default function HomeScreen() {
   const [selectedSize, setSelectedSize] = useState('M');
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const { isAnalyzing, isSearching, error, runSearch } = useSearch();
+  const { history } = useSearchHistory();
 
   const isLoading = isAnalyzing || isSearching;
 
@@ -28,6 +34,7 @@ export default function HomeScreen() {
       aspect: [3, 4],
     });
     if (!result.canceled) {
+      setSelectedImage(result.assets[0].uri);
       await startSearch(result.assets[0].uri);
     }
   }
@@ -44,6 +51,7 @@ export default function HomeScreen() {
       aspect: [3, 4],
     });
     if (!result.canceled) {
+      setSelectedImage(result.assets[0].uri);
       await startSearch(result.assets[0].uri);
     }
   }
@@ -51,6 +59,7 @@ export default function HomeScreen() {
   async function startSearch(imageUri: string) {
     const searchId = await runSearch(imageUri, selectedSize);
     if (searchId) {
+      setSelectedImage(null);
       router.push(`/results/${searchId}`);
     }
   }
@@ -62,35 +71,55 @@ export default function HomeScreen() {
           <Text style={styles.logo}>patina</Text>
         </View>
 
-        <Text style={styles.prompt}>Find vintage that matches your style</Text>
-
-        <SizeSelector value={selectedSize} onChange={setSelectedSize} />
-
         {isLoading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#8B6F47" />
-            <Text style={styles.loadingText}>
-              {isAnalyzing ? 'Analyzing your photo...' : 'Searching vintage platforms...'}
-            </Text>
+          <View style={styles.loadingSection}>
+            {selectedImage && (
+              <Image source={{ uri: selectedImage }} style={styles.previewImage} />
+            )}
+            <AnalyzingOverlay stage={isAnalyzing ? 'analyzing' : 'searching'} />
           </View>
         ) : (
-          <View style={styles.actions}>
-            <TouchableOpacity style={styles.primaryAction} onPress={pickFromLibrary}>
-              <Text style={styles.primaryActionText}>Choose from Photos</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.secondaryAction} onPress={takePhoto}>
-              <Text style={styles.secondaryActionText}>Take a Photo</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+          <>
+            <Text style={styles.prompt}>Find vintage that matches your style</Text>
 
-        {error && (
-          <Text style={styles.error}>{error}</Text>
-        )}
+            <SizeSelector value={selectedSize} onChange={setSelectedSize} />
 
-        <Text style={styles.tip}>
-          Tip: Screenshots of outfits from Pinterest, Instagram, or magazines work great.
-        </Text>
+            <View style={styles.actions}>
+              <TouchableOpacity style={styles.primaryAction} onPress={pickFromLibrary}>
+                <Text style={styles.primaryActionText}>Choose from Photos</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.secondaryAction} onPress={takePhoto}>
+                <Text style={styles.secondaryActionText}>Take a Photo</Text>
+              </TouchableOpacity>
+            </View>
+
+            {error && (
+              <Text style={styles.error}>{error}</Text>
+            )}
+
+            {history.length > 0 && (
+              <View style={styles.historySection}>
+                <Text style={styles.historyLabel}>Recent searches</Text>
+                <FlatList
+                  data={history}
+                  keyExtractor={(item) => item.id}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  renderItem={({ item }) => (
+                    <SearchHistoryCard
+                      item={item}
+                      onPress={() => router.push(`/results/${item.id}`)}
+                    />
+                  )}
+                />
+              </View>
+            )}
+
+            <Text style={styles.tip}>
+              Tip: Screenshots of outfits from Pinterest, Instagram, or magazines work great.
+            </Text>
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -102,8 +131,13 @@ const styles = StyleSheet.create({
   header: { paddingVertical: 16 },
   logo: { fontSize: 28, fontWeight: '300', letterSpacing: 5, color: '#3D2B1F' },
   prompt: { fontSize: 22, fontWeight: '600', color: '#3D2B1F', marginTop: 32, marginBottom: 24, lineHeight: 30 },
-  loadingContainer: { alignItems: 'center', paddingVertical: 60, gap: 16 },
-  loadingText: { color: '#8B6F47', fontSize: 16, fontStyle: 'italic' },
+  loadingSection: { alignItems: 'center', marginTop: 24 },
+  previewImage: {
+    width: 160,
+    height: 213,
+    borderRadius: 12,
+    backgroundColor: '#E0D8D0',
+  },
   actions: { gap: 12, marginVertical: 32 },
   primaryAction: {
     backgroundColor: '#8B6F47',
@@ -122,5 +156,14 @@ const styles = StyleSheet.create({
   },
   secondaryActionText: { color: '#3D2B1F', fontSize: 17, fontWeight: '500' },
   error: { color: '#C0392B', fontSize: 14, textAlign: 'center', marginTop: 16 },
+  historySection: { marginTop: 8, marginBottom: 16 },
+  historyLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#9E9E9E',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 12,
+  },
   tip: { color: '#9E9E9E', fontSize: 13, textAlign: 'center', marginTop: 'auto', paddingTop: 40, lineHeight: 20 },
 });

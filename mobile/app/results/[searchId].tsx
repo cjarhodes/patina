@@ -9,13 +9,15 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
+  Share,
 } from 'react-native';
-import { Image } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { Listing } from '../../types/listing';
+import { StyleSignal } from '../../types/styleSignal';
 import { ResultCard } from '../../components/ResultCard';
+import { StyleSignalCard } from '../../components/StyleSignalCard';
 import { buildAffiliateUrl } from '../../lib/affiliateLinks';
 import { useSavedSearches } from '../../hooks/useSavedSearches';
 
@@ -26,6 +28,23 @@ export default function ResultsScreen() {
 
   const isSaved = savedSearches.some((s) => (s.searches as any)?.id === searchId);
 
+  // Fetch search metadata (for style signals)
+  const { data: searchMeta } = useQuery({
+    queryKey: ['search-meta', searchId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('searches')
+        .select('style_signals, size_filter')
+        .eq('id', searchId)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const styleSignals = searchMeta?.style_signals as StyleSignal | undefined;
+
+  // Fetch listings
   const { data, isLoading, error } = useQuery({
     queryKey: ['results', searchId],
     queryFn: async () => {
@@ -45,7 +64,7 @@ export default function ResultsScreen() {
     setSaving(true);
     try {
       await saveSearch.mutateAsync(searchId);
-      Alert.alert('Saved!', 'We\'ll notify you when new vintage pieces matching this search appear.');
+      Alert.alert('Saved!', "We'll notify you when new vintage pieces matching this search appear.");
     } catch (err: any) {
       Alert.alert('Error', err.message);
     } finally {
@@ -60,6 +79,25 @@ export default function ResultsScreen() {
       Linking.openURL(url);
     }
   }
+
+  async function shareListing(listing: Listing) {
+    try {
+      await Share.share({
+        message: `Check out this vintage find on Patina: ${listing.title} - $${listing.price_usd.toFixed(2)} ${listing.listing_url}`,
+      });
+    } catch {
+      // user cancelled
+    }
+  }
+
+  const headerComponent = (
+    <>
+      <Text style={styles.disclosure}>
+        We may earn a commission on purchases · results from eBay & Etsy
+      </Text>
+      {styleSignals && <StyleSignalCard signals={styleSignals} />}
+    </>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -80,12 +118,8 @@ export default function ResultsScreen() {
             }
           </TouchableOpacity>
         )}
-        {isSaved && <Text style={styles.savedLabel}>Saved ✓</Text>}
+        {isSaved && <Text style={styles.savedLabel}>Saved</Text>}
       </View>
-
-      <Text style={styles.disclosure}>
-        We may earn a commission on purchases · results from eBay &amp; Etsy
-      </Text>
 
       {isLoading && (
         <ActivityIndicator size="large" color="#8B6F47" style={{ flex: 1 }} />
@@ -99,6 +133,7 @@ export default function ResultsScreen() {
 
       {data && data.length === 0 && (
         <View style={styles.empty}>
+          {styleSignals && <StyleSignalCard signals={styleSignals} />}
           <Text style={styles.emptyTitle}>No results found</Text>
           <Text style={styles.emptyBody}>
             Try a different photo with clearer clothing details, or adjust your size.
@@ -111,10 +146,15 @@ export default function ResultsScreen() {
           data={data}
           keyExtractor={(item) => item.id}
           numColumns={2}
+          ListHeaderComponent={headerComponent}
           contentContainerStyle={styles.grid}
           columnWrapperStyle={styles.row}
           renderItem={({ item }) => (
-            <ResultCard listing={item} onPress={() => openListing(item)} />
+            <ResultCard
+              listing={item}
+              onPress={() => openListing(item)}
+              onLongPress={() => shareListing(item)}
+            />
           )}
         />
       )}
@@ -137,6 +177,6 @@ const styles = StyleSheet.create({
   errorContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
   errorText: { color: '#C0392B', fontSize: 15, textAlign: 'center' },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
-  emptyTitle: { fontSize: 18, fontWeight: '600', color: '#3D2B1F', marginBottom: 12 },
+  emptyTitle: { fontSize: 18, fontWeight: '600', color: '#3D2B1F', marginBottom: 12, marginTop: 20 },
   emptyBody: { fontSize: 14, color: '#6B5B4E', textAlign: 'center', lineHeight: 22 },
 });
