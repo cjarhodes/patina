@@ -120,6 +120,102 @@ export function useSearch() {
     }
   }
 
-  return { ...state, runSearch };
+  async function findSimilar(thumbnailUrl: string, sizeFilter: string) {
+    setState((s) => ({ ...s, isAnalyzing: true, error: null, listings: [] }));
+    trackEvent('find_similar_started', {});
+
+    try {
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      const authHeader = currentSession?.access_token
+        ? { Authorization: `Bearer ${currentSession.access_token}` }
+        : {};
+
+      // Download the listing thumbnail and re-upload to our storage
+      const fileName = `similar_${Date.now()}.jpg`;
+      const downloadResult = await FileSystem.downloadAsync(
+        thumbnailUrl,
+        FileSystem.documentDirectory + fileName
+      );
+
+      const base64 = await FileSystem.readAsStringAsync(downloadResult.uri, {
+        encoding: 'base64' as any,
+      });
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('search-images')
+        .upload(fileName, decode(base64), { contentType: 'image/jpeg' });
+
+      if (uploadError) throw new Error(uploadError.message);
+
+      const imagePath = uploadData.path;
+      const { data: { publicUrl } } = supabase.storage
+        .from('search-images')
+        .getPublicUrl(imagePath);
+
+      // Analyze the image
+      const { data: analyzeData, error: analyzeError } = await supabase.functions.invoke(
+        'analyze-image',
+        { body: { image_url: publicUrl }, headers: authHeader }
+      );
+
+      if (analyzeError) throw new Error(analyzeError.message);
+
+      const styleSignals: StyleSignal = analyzeData.style_signals;
+      setState((s) => ({ ...s, isAnalyzing: false, isSearching: true, styleSignals }));
+
+      // Fetch profile preferences
+      let shoppingFor = 'womens';
+      let stylePreferences: string[] = [];
+      let favoriteDecades: string[] = [];
+      if (session?.user.id) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('shopping_for, style_preferences, favorite_decades')
+          .eq('id', session.user.id)
+          .single();
+        if (profile?.shopping_for) shoppingFor = profile.shopping_for;
+        if (profile?.style_preferences) stylePreferences = profile.style_preferences;
+        if (profile?.favorite_decades) favoriteDecades = profile.favorite_decades;
+      }
+
+      // Search platforms
+      const { data: searchData, error: searchError } = await supabase.functions.invoke(
+        'search-platforms',
+        {
+          body: {
+            style_signals: styleSignals,
+            size_filter: sizeFilter,
+            image_path: imagePath,
+            shopping_for: shoppingFor,
+            style_preferences: stylePreferences,
+            favorite_decades: favoriteDecades,
+          },
+          headers: authHeader,
+        }
+      );
+
+      if (searchError) throw new Error(searchError.message);
+
+      setState((s) => ({
+        ...s,
+        isSearching: false,
+        searchId: searchData.search_id,
+        listings: searchData.listings,
+      }));
+
+      trackEvent('find_similar_completed', {
+        search_id: searchData.search_id,
+        listing_count: searchData.listings?.length ?? 0,
+        garment_type: styleSignals?.garment_type ?? 'unknown',
+      });
+      return searchData.search_id as string;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Something went wrong';
+      setState((s) => ({ ...s, isAnalyzing: false, isSearching: false, error: message }));
+      return null;
+    }
+  }
+
+  return { ...state, runSearch, findSimilar };
 }
 

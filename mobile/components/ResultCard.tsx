@@ -6,6 +6,9 @@ type Props = {
   listing: Listing;
   onPress: () => void;
   onLongPress?: () => void;
+  onFindSimilar?: () => void;
+  isFavorited?: boolean;
+  onToggleFavorite?: () => void;
 };
 
 function MatchDots({ score }: { score: number }) {
@@ -19,7 +22,7 @@ function MatchDots({ score }: { score: number }) {
   );
 }
 
-export function ResultCard({ listing, onPress, onLongPress }: Props) {
+export function ResultCard({ listing, onPress, onLongPress, onFindSimilar, isFavorited, onToggleFavorite }: Props) {
   return (
     <TouchableOpacity
       style={styles.card}
@@ -29,6 +32,20 @@ export function ResultCard({ listing, onPress, onLongPress }: Props) {
       delayLongPress={400}
     >
       <View style={styles.imageContainer}>
+        {onToggleFavorite && (
+          <TouchableOpacity
+            style={styles.heartButton}
+            onPress={(e) => {
+              e.stopPropagation?.();
+              onToggleFavorite();
+            }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Text style={[styles.heartIcon, isFavorited && styles.heartIconFilled]}>
+              {isFavorited ? '\u2665' : '\u2661'}
+            </Text>
+          </TouchableOpacity>
+        )}
         <Image
           source={{ uri: listing.thumbnail_url }}
           style={styles.image}
@@ -48,6 +65,18 @@ export function ResultCard({ listing, onPress, onLongPress }: Props) {
         <View style={styles.footer}>
           <MatchDots score={listing.relevance_score} />
           <Text style={styles.matchLabel}>match</Text>
+          {onFindSimilar && (
+            <TouchableOpacity
+              style={styles.similarButton}
+              onPress={(e) => {
+                e.stopPropagation?.();
+                onFindSimilar();
+              }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={styles.similarText}>Similar</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     </TouchableOpacity>
@@ -65,6 +94,25 @@ const styles = StyleSheet.create({
     borderColor: '#E0D8D0',
   },
   imageContainer: { position: 'relative' },
+  heartButton: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
+  },
+  heartIcon: {
+    fontSize: 18,
+    color: '#FFF',
+  },
+  heartIconFilled: {
+    color: '#C0392B',
+  },
   image: { width: '100%', aspectRatio: 3 / 4, backgroundColor: '#F0EAE4' },
   priceTag: {
     position: 'absolute',
@@ -111,5 +159,17 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#C4B5A5',
     fontWeight: '500',
+  },
+  similarButton: {
+    marginLeft: 'auto',
+    backgroundColor: '#F0E8DE',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  similarText: {
+    fontSize: 10,
+    color: '#8B6F47',
+    fontWeight: '600',
   },
 });

@@ -22,16 +22,22 @@ import { StyleSignalCard } from '../../components/StyleSignalCard';
 import { SkeletonGrid } from '../../components/SkeletonCard';
 import { ErrorState } from '../../components/ErrorState';
 import { FilterSortBar, SortOption, PlatformFilter } from '../../components/FilterSortBar';
+import { AnalyzingOverlay } from '../../components/AnalyzingOverlay';
 import { buildAffiliateUrl } from '../../lib/affiliateLinks';
 import { useSavedSearches } from '../../hooks/useSavedSearches';
+import { useSearch } from '../../hooks/useSearch';
+import { useFavorites } from '../../hooks/useFavorites';
 
 export default function ResultsScreen() {
   const { searchId } = useLocalSearchParams<{ searchId: string }>();
   const { saveSearch, savedSearches } = useSavedSearches();
+  const { isAnalyzing, isSearching, findSimilar } = useSearch();
+  const { toggleFavorite, isFavorited } = useFavorites();
   const [saving, setSaving] = useState(false);
   const [sort, setSort] = useState<SortOption>('relevance');
   const [platformFilter, setPlatformFilter] = useState<PlatformFilter>('all');
   const [refreshing, setRefreshing] = useState(false);
+  const isFindingSimilar = isAnalyzing || isSearching;
 
   const isSaved = savedSearches.some((s) => (s.searches as any)?.id === searchId);
 
@@ -120,6 +126,21 @@ export default function ResultsScreen() {
     }
   }
 
+  async function shareSearch() {
+    const garment = styleSignals?.garment_type ?? 'vintage piece';
+    const decade = styleSignals?.decade_range ?? '';
+    const resultCount = data?.length ?? 0;
+
+    try {
+      await Share.share({
+        message: `Check out this ${decade} ${garment} search on Patina — ${resultCount} vintage finds! https://patina.app/search/${searchId}`,
+        url: `patina://results/${searchId}`,
+      });
+    } catch {
+      // user cancelled
+    }
+  }
+
   async function shareListing(listing: Listing) {
     try {
       await Share.share({
@@ -127,6 +148,14 @@ export default function ResultsScreen() {
       });
     } catch {
       // user cancelled
+    }
+  }
+
+  async function handleFindSimilar(listing: Listing) {
+    const sizeFilter = searchMeta?.size_filter ?? 'M';
+    const newSearchId = await findSimilar(listing.thumbnail_url, sizeFilter);
+    if (newSearchId) {
+      router.push(`/results/${newSearchId}`);
     }
   }
 
@@ -165,9 +194,16 @@ export default function ResultsScreen() {
           </TouchableOpacity>
         )}
         {isSaved && <Text style={styles.savedLabel}>Saved</Text>}
+        <TouchableOpacity onPress={shareSearch} style={styles.shareButton}>
+          <Text style={styles.shareIcon}>↗</Text>
+        </TouchableOpacity>
       </View>
 
-      {isLoading && <SkeletonGrid />}
+      {isLoading && !isFindingSimilar && <SkeletonGrid />}
+
+      {isFindingSimilar && (
+        <AnalyzingOverlay stage={isAnalyzing ? 'analyzing' : 'searching'} />
+      )}
 
       {error && (
         <ErrorState
@@ -215,6 +251,9 @@ export default function ResultsScreen() {
               listing={item}
               onPress={() => openListing(item)}
               onLongPress={() => shareListing(item)}
+              onFindSimilar={() => handleFindSimilar(item)}
+              isFavorited={isFavorited(item.id)}
+              onToggleFavorite={() => toggleFavorite.mutate(item.id)}
             />
           )}
         />
@@ -232,6 +271,8 @@ const styles = StyleSheet.create({
   saveButton: { paddingHorizontal: 16, paddingVertical: 8, backgroundColor: '#F0E8DE', borderRadius: 20 },
   saveButtonText: { color: '#8B6F47', fontWeight: '600', fontSize: 14 },
   savedLabel: { color: '#8B6F47', fontWeight: '600', fontSize: 14 },
+  shareButton: { marginLeft: 8, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: '#F0E8DE', borderRadius: 20 },
+  shareIcon: { fontSize: 16, color: '#8B6F47' },
   disclosure: { fontSize: 11, color: '#C4B5A5', textAlign: 'center', paddingVertical: 8, paddingHorizontal: 16 },
   grid: { padding: 8 },
   row: { justifyContent: 'space-between' },

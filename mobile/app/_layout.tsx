@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Stack, router } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
+import * as Linking from 'expo-linking';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../hooks/useAuthStore';
 import { usePushNotifications } from '../hooks/usePushNotifications';
@@ -48,6 +49,28 @@ export default function RootLayout() {
     });
 
     return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    // Handle deep links
+    function handleDeepLink(event: { url: string }) {
+      const parsed = Linking.parse(event.url);
+      if (parsed.path?.startsWith('results/')) {
+        const searchId = parsed.path.replace('results/', '');
+        if (searchId) {
+          router.push(`/results/${searchId}`);
+        }
+      }
+    }
+
+    // Handle link that opened the app
+    Linking.getInitialURL().then((url) => {
+      if (url) handleDeepLink({ url });
+    });
+
+    // Handle links while app is open
+    const subscription = Linking.addEventListener('url', handleDeepLink);
+    return () => subscription.remove();
   }, []);
 
   return (

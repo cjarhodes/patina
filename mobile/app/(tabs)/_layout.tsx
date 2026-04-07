@@ -1,10 +1,7 @@
 import { Tabs } from 'expo-router';
 import { View, StyleSheet } from 'react-native';
 
-// Simple inline SVG-like tab icons using text for now
-function SearchIcon({ color }: { color: string }) {
-  return <View style={[styles.iconDot, { borderColor: color }]} />;
-}
+// Simple inline tab icons using View shapes
 
 export default function TabLayout() {
   return (
@@ -36,6 +33,15 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="favorites"
+        options={{
+          title: 'Favorites',
+          tabBarIcon: ({ color }) => (
+            <View style={[styles.tabIconFavorite, { borderColor: color }]} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
@@ -58,5 +64,6 @@ const styles = StyleSheet.create({
   tabLabel: { fontSize: 11, fontWeight: '500', marginBottom: 8 },
   tabIcon: { width: 22, height: 22, borderRadius: 4, borderWidth: 2 },
   tabIconHeart: { width: 20, height: 18, borderRadius: 2, borderWidth: 2 },
+  tabIconFavorite: { width: 20, height: 18, borderRadius: 10, borderWidth: 2 },
   tabIconCircle: { width: 22, height: 22, borderRadius: 11, borderWidth: 2 },
 });

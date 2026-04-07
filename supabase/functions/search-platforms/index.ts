@@ -313,16 +313,106 @@ serve(async (req) => {
     // Fallback mock listings when both APIs return nothing (e.g. pending approval)
     if (allListings.length === 0) {
       const garment = style_signals?.garment_type ?? 'clothing';
-      const color = style_signals?.dominant_colors?.[0] ?? '';
-      const decade = style_signals?.decade_range !== 'vintage' ? (style_signals?.decade_range ?? '') : '';
+      const color = style_signals?.dominant_colors?.[0] ?? 'neutral';
+      const color2 = style_signals?.dominant_colors?.[1] ?? '';
+      const decade = style_signals?.decade_range !== 'vintage' ? (style_signals?.decade_range ?? '1970s') : '1970s';
       const brand = style_signals?.brand ?? '';
-      const label = [brand, decade, color, garment].filter(Boolean).join(' ');
+      const fabric = style_signals?.fabric_indicators?.[0] ?? '';
+      const silhouette = style_signals?.silhouette ?? '';
+      const sz = size_filter ?? 'M';
+
+      const brandPrefix = brand ? `${brand} ` : '';
+      const decadeShort = decade.replace(/s.*/, 's');
+
       allListings = [
-        { platform: 'etsy', external_id: 'mock-1', title: `Vintage ${label} — 1970s floral wrap dress`, price_usd: 48, size_label: size_filter ?? 'M', condition: 'pre-owned', thumbnail_url: 'https://i.etsystatic.com/isla/d4a5c0/51756383/isla_570xN.51756383_3l7c.jpg', listing_url: 'https://www.etsy.com/listing/1234567890', relevance_score: 0.9 },
-        { platform: 'etsy', external_id: 'mock-2', title: `Vintage ${label} — 1960s mod shift dress`, price_usd: 34, size_label: size_filter ?? 'M', condition: 'pre-owned', thumbnail_url: 'https://i.etsystatic.com/isla/d4a5c0/51756383/isla_570xN.51756383_3l7c.jpg', listing_url: 'https://www.etsy.com/listing/1234567891', relevance_score: 0.85 },
-        { platform: 'etsy', external_id: 'mock-3', title: `Vintage ${label} — 1980s power blazer shoulder pads`, price_usd: 62, size_label: size_filter ?? 'M', condition: 'pre-owned', thumbnail_url: 'https://i.etsystatic.com/isla/d4a5c0/51756383/isla_570xN.51756383_3l7c.jpg', listing_url: 'https://www.etsy.com/listing/1234567892', relevance_score: 0.8 },
-        { platform: 'ebay', external_id: 'mock-4', title: `Vintage ${label} — 1990s slip dress grunge era`, price_usd: 29, size_label: size_filter ?? 'M', condition: 'Pre-owned', thumbnail_url: 'https://i.etsystatic.com/isla/d4a5c0/51756383/isla_570xN.51756383_3l7c.jpg', listing_url: 'https://www.ebay.com/itm/1234567893', relevance_score: 0.75 },
-        { platform: 'etsy', external_id: 'mock-5', title: `Vintage ${label} — 1970s peasant blouse bohemian`, price_usd: 41, size_label: size_filter ?? 'M', condition: 'pre-owned', thumbnail_url: 'https://i.etsystatic.com/isla/d4a5c0/51756383/isla_570xN.51756383_3l7c.jpg', listing_url: 'https://www.etsy.com/listing/1234567894', relevance_score: 0.7 },
+        {
+          platform: 'etsy' as const,
+          external_id: 'mock-e1',
+          title: `${brandPrefix}Vintage ${decadeShort} ${color} ${garment} — ${silhouette || 'classic fit'}`,
+          price_usd: 48,
+          size_label: sz,
+          condition: 'Excellent',
+          thumbnail_url: `https://picsum.photos/seed/patina-${garment}-1/400/533`,
+          listing_url: 'https://www.etsy.com/listing/1456789001',
+          relevance_score: 0.92,
+        },
+        {
+          platform: 'etsy' as const,
+          external_id: 'mock-e2',
+          title: `${decadeShort} ${fabric || 'cotton'} ${garment} in ${color}${color2 ? ` and ${color2}` : ''} — retro ${silhouette || 'silhouette'}`,
+          price_usd: 34,
+          size_label: sz,
+          condition: 'Good',
+          thumbnail_url: `https://picsum.photos/seed/patina-${garment}-2/400/533`,
+          listing_url: 'https://www.etsy.com/listing/1456789002',
+          relevance_score: 0.87,
+        },
+        {
+          platform: 'ebay' as const,
+          external_id: 'mock-b1',
+          title: `Vtg ${brandPrefix}${garment} ${decadeShort} ${color} ${fabric || 'woven'} — great condition`,
+          price_usd: 62,
+          size_label: sz,
+          condition: 'Pre-owned',
+          thumbnail_url: `https://picsum.photos/seed/patina-${garment}-3/400/533`,
+          listing_url: 'https://www.ebay.com/itm/325789001',
+          relevance_score: 0.83,
+        },
+        {
+          platform: 'etsy' as const,
+          external_id: 'mock-e3',
+          title: `Rare ${decadeShort} ${brandPrefix}${garment} — ${color} ${fabric || 'blend'} — boho vintage`,
+          price_usd: 89,
+          size_label: sz,
+          condition: 'Vintage',
+          thumbnail_url: `https://picsum.photos/seed/patina-${garment}-4/400/533`,
+          listing_url: 'https://www.etsy.com/listing/1456789003',
+          relevance_score: 0.79,
+        },
+        {
+          platform: 'ebay' as const,
+          external_id: 'mock-b2',
+          title: `${brandPrefix}${color} ${garment} — ${decadeShort} era vintage — ${silhouette || 'classic'}`,
+          price_usd: 29,
+          size_label: sz,
+          condition: 'Good',
+          thumbnail_url: `https://picsum.photos/seed/patina-${garment}-5/400/533`,
+          listing_url: 'https://www.ebay.com/itm/325789002',
+          relevance_score: 0.74,
+        },
+        {
+          platform: 'etsy' as const,
+          external_id: 'mock-e4',
+          title: `True vintage ${garment} — ${color}${color2 ? `/${color2}` : ''} — ${decadeShort} ${fabric || 'original'}`,
+          price_usd: 41,
+          size_label: sz,
+          condition: 'Pre-owned',
+          thumbnail_url: `https://picsum.photos/seed/patina-${garment}-6/400/533`,
+          listing_url: 'https://www.etsy.com/listing/1456789004',
+          relevance_score: 0.68,
+        },
+        {
+          platform: 'ebay' as const,
+          external_id: 'mock-b3',
+          title: `${decadeShort} ${brandPrefix}${garment} — deadstock ${color} — vintage ${silhouette || 'cut'}`,
+          price_usd: 125,
+          size_label: sz,
+          condition: 'Excellent',
+          thumbnail_url: `https://picsum.photos/seed/patina-${garment}-7/400/533`,
+          listing_url: 'https://www.ebay.com/itm/325789003',
+          relevance_score: 0.63,
+        },
+        {
+          platform: 'etsy' as const,
+          external_id: 'mock-e5',
+          title: `Vintage ${garment} — ${color} ${fabric || 'textile'} — ${decadeShort} estate find`,
+          price_usd: 22,
+          size_label: sz,
+          condition: 'Good',
+          thumbnail_url: `https://picsum.photos/seed/patina-${garment}-8/400/533`,
+          listing_url: 'https://www.etsy.com/listing/1456789005',
+          relevance_score: 0.58,
+        },
       ];
     }
 
