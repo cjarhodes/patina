@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
+import { router } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../hooks/useAuthStore';
@@ -132,6 +133,9 @@ export default function ProfileScreen() {
         )}
 
         <View style={styles.footer}>
+          <TouchableOpacity style={styles.styleGuideButton} onPress={() => router.push('/style-guide' as any)}>
+            <Text style={styles.styleGuideText}>Style Guide</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={styles.signOutButton} onPress={signOut}>
             <Text style={styles.signOutText}>Sign out</Text>
           </TouchableOpacity>
@@ -174,6 +178,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 24,
   },
+  styleGuideButton: {
+    borderWidth: 1,
+    borderColor: '#D4C5B5',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center' as const,
+    marginBottom: 12,
+  },
+  styleGuideText: { color: '#8B6F47', fontSize: 15, fontWeight: '500' },
   signOutText: { color: '#C0392B', fontSize: 15, fontWeight: '500' },
   disclosure: { fontSize: 11, color: '#C4B5A5', textAlign: 'center', lineHeight: 18 },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },

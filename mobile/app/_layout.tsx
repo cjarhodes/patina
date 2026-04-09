@@ -81,6 +81,7 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="results/[searchId]" options={{ presentation: 'card' }} />
         <Stack.Screen name="compare" options={{ presentation: 'card' }} />
+        <Stack.Screen name="style-guide" options={{ presentation: 'card' }} />
       </Stack>
     </QueryClientProvider>
   );
