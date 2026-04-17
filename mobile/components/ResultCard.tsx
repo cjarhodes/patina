@@ -1,6 +1,8 @@
+import React from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { Listing } from '../types/listing';
 import { PlatformBadge } from './PlatformBadge';
+import { colors, spacing, borderRadius } from '../lib/theme';
 
 type Props = {
   listing: Listing;
@@ -15,7 +17,7 @@ type Props = {
 function MatchDots({ score }: { score: number }) {
   const filled = Math.round(score * 5);
   return (
-    <View style={styles.matchDots}>
+    <View style={styles.matchDots} accessibilityLabel={`Match score: ${filled} out of 5`}>
       {[0, 1, 2, 3, 4].map((i) => (
         <View key={i} style={[styles.matchDot, i < filled && styles.matchDotFilled]} />
       ))}
@@ -23,7 +25,15 @@ function MatchDots({ score }: { score: number }) {
   );
 }
 
-export function ResultCard({ listing, onPress, onLongPress, onFindSimilar, isFavorited, onToggleFavorite, priceDrop }: Props) {
+export const ResultCard = React.memo(function ResultCard({
+  listing,
+  onPress,
+  onLongPress,
+  onFindSimilar,
+  isFavorited,
+  onToggleFavorite,
+  priceDrop,
+}: Props) {
   return (
     <TouchableOpacity
       style={styles.card}
@@ -31,6 +41,8 @@ export function ResultCard({ listing, onPress, onLongPress, onFindSimilar, isFav
       onLongPress={onLongPress}
       activeOpacity={0.85}
       delayLongPress={400}
+      accessibilityLabel={`${listing.title}, $${listing.price_usd.toFixed(0)}, ${listing.platform}`}
+      accessibilityRole="button"
     >
       <View style={styles.imageContainer}>
         {onToggleFavorite && (
@@ -41,6 +53,8 @@ export function ResultCard({ listing, onPress, onLongPress, onFindSimilar, isFav
               onToggleFavorite();
             }}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityLabel={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
+            accessibilityRole="button"
           >
             <Text style={[styles.heartIcon, isFavorited && styles.heartIconFilled]}>
               {isFavorited ? '\u2665' : '\u2661'}
@@ -51,6 +65,7 @@ export function ResultCard({ listing, onPress, onLongPress, onFindSimilar, isFav
           source={{ uri: listing.thumbnail_url }}
           style={styles.image}
           resizeMode="cover"
+          accessibilityLabel={`Photo of ${listing.title}`}
         />
         <PlatformBadge platform={listing.platform} />
         <View style={styles.priceTag}>
@@ -79,6 +94,8 @@ export function ResultCard({ listing, onPress, onLongPress, onFindSimilar, isFav
                 onFindSimilar();
               }}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="Find similar items"
+              accessibilityRole="button"
             >
               <Text style={styles.similarText}>Similar</Text>
             </TouchableOpacity>
@@ -87,79 +104,79 @@ export function ResultCard({ listing, onPress, onLongPress, onFindSimilar, isFav
       </View>
     </TouchableOpacity>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: {
     width: '48.5%',
-    backgroundColor: '#FFF',
-    borderRadius: 12,
-    marginBottom: 12,
+    backgroundColor: colors.surface.card,
+    borderRadius: borderRadius.lg,
+    marginBottom: spacing.md,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#E0D8D0',
+    borderColor: colors.border.default,
   },
   imageContainer: { position: 'relative' },
   heartButton: {
     position: 'absolute',
-    top: 8,
-    left: 8,
+    top: spacing.sm,
+    left: spacing.sm,
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: colors.overlay.light,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 2,
   },
   heartIcon: {
     fontSize: 18,
-    color: '#FFF',
+    color: colors.text.inverse,
   },
   heartIconFilled: {
-    color: '#C0392B',
+    color: colors.functional.error,
   },
-  image: { width: '100%', aspectRatio: 3 / 4, backgroundColor: '#F0EAE4' },
+  image: { width: '100%', aspectRatio: 3 / 4, backgroundColor: colors.surface.skeleton },
   priceTag: {
     position: 'absolute',
-    bottom: 8,
-    right: 8,
-    backgroundColor: 'rgba(61, 43, 31, 0.85)',
+    bottom: spacing.sm,
+    right: spacing.sm,
+    backgroundColor: colors.overlay.dark,
     paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.md,
   },
-  priceText: { color: '#FFF', fontSize: 15, fontWeight: '700' },
+  priceText: { color: colors.text.inverse, fontSize: 15, fontWeight: '700' },
   priceDropTag: {
     position: 'absolute',
-    bottom: 8,
-    left: 8,
-    backgroundColor: '#27AE60',
-    paddingHorizontal: 8,
+    bottom: spacing.sm,
+    left: spacing.sm,
+    backgroundColor: colors.functional.success,
+    paddingHorizontal: spacing.sm,
     paddingVertical: 3,
-    borderRadius: 8,
+    borderRadius: borderRadius.md,
   },
   priceDropTagText: {
-    color: '#FFF',
+    color: colors.text.inverse,
     fontSize: 12,
     fontWeight: '700',
   },
   info: { padding: 10 },
-  title: { fontSize: 12, color: '#6B5B4E', lineHeight: 17 },
-  meta: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 8 },
+  title: { fontSize: 12, color: colors.text.secondary, lineHeight: 17 },
+  meta: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.sm },
   tag: {
     fontSize: 10,
-    color: '#8B6F47',
-    backgroundColor: '#F0E8DE',
-    paddingHorizontal: 8,
+    color: colors.primary,
+    backgroundColor: colors.surface.secondary,
+    paddingHorizontal: spacing.sm,
     paddingVertical: 3,
-    borderRadius: 20,
+    borderRadius: borderRadius.pill,
     overflow: 'hidden',
   },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: spacing.sm,
     gap: 6,
   },
   matchDots: {
@@ -170,26 +187,26 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#E0D8D0',
+    backgroundColor: colors.border.default,
   },
   matchDotFilled: {
-    backgroundColor: '#8B6F47',
+    backgroundColor: colors.primary,
   },
   matchLabel: {
     fontSize: 10,
-    color: '#C4B5A5',
+    color: colors.text.disabled,
     fontWeight: '500',
   },
   similarButton: {
     marginLeft: 'auto',
-    backgroundColor: '#F0E8DE',
+    backgroundColor: colors.surface.secondary,
     paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.lg,
   },
   similarText: {
     fontSize: 10,
-    color: '#8B6F47',
+    color: colors.primary,
     fontWeight: '600',
   },
 });

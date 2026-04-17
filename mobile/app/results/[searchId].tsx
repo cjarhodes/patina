@@ -14,6 +14,7 @@ import {
   Modal,
   TextInput,
   KeyboardAvoidingView,
+  Keyboard,
   Platform,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -33,6 +34,7 @@ import { useSavedSearches } from '../../hooks/useSavedSearches';
 import { useSearch } from '../../hooks/useSearch';
 import { useFavorites } from '../../hooks/useFavorites';
 import { useClickTracking } from '../../hooks/useClickTracking';
+import { colors, typography, spacing, borderRadius } from '../../lib/theme';
 
 export default function ResultsScreen() {
   const { searchId } = useLocalSearchParams<{ searchId: string }>();
@@ -127,8 +129,9 @@ export default function ResultsScreen() {
     try {
       await saveSearch.mutateAsync(searchId);
       Alert.alert('Saved!', "We'll notify you when new vintage pieces matching this search appear.");
-    } catch (err: any) {
-      Alert.alert('Error', err.message);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Could not save search';
+      Alert.alert('Save failed', message);
     } finally {
       setSaving(false);
     }
@@ -159,8 +162,8 @@ export default function ResultsScreen() {
         message: `Check out this ${decade} ${garment} search on Patina — ${resultCount} vintage finds! https://patina.app/search/${searchId}`,
         url: `patina://results/${searchId}`,
       });
-    } catch {
-      // user cancelled
+    } catch (err) {
+      console.error('Share failed:', err);
     }
   }
 
@@ -169,8 +172,8 @@ export default function ResultsScreen() {
       await Share.share({
         message: `Check out this vintage find on Patina: ${listing.title} - $${listing.price_usd.toFixed(2)} ${listing.listing_url}`,
       });
-    } catch {
-      // user cancelled
+    } catch (err) {
+      console.error('Share failed:', err);
     }
   }
 
@@ -182,8 +185,13 @@ export default function ResultsScreen() {
     }
   }
 
-  async function handleRefine() {
+  function closeRefineModal() {
+    Keyboard.dismiss();
     setShowRefine(false);
+  }
+
+  async function handleRefine() {
+    closeRefineModal();
     const newSearchId = await refineSearch(
       styleSignals,
       searchMeta?.image_storage_path ?? '',
@@ -214,7 +222,12 @@ export default function ResultsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+          accessibilityLabel="Go back"
+          accessibilityRole="button"
+        >
           <Text style={styles.backText}>← Back</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Results</Text>
@@ -223,18 +236,30 @@ export default function ResultsScreen() {
             style={styles.saveButton}
             onPress={handleSaveSearch}
             disabled={saving}
+            accessibilityLabel="Save this search"
+            accessibilityRole="button"
           >
             {saving
-              ? <ActivityIndicator size="small" color="#8B6F47" />
+              ? <ActivityIndicator size="small" color={colors.primary} />
               : <Text style={styles.saveButtonText}>Save</Text>
             }
           </TouchableOpacity>
         )}
         {isSaved && <Text style={styles.savedLabel}>Saved</Text>}
-        <TouchableOpacity onPress={() => setShowRefine(true)} style={styles.refineButton}>
+        <TouchableOpacity
+          onPress={() => setShowRefine(true)}
+          style={styles.refineButton}
+          accessibilityLabel="Refine search"
+          accessibilityRole="button"
+        >
           <Text style={styles.refineButtonText}>Refine</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={shareSearch} style={styles.shareButton}>
+        <TouchableOpacity
+          onPress={shareSearch}
+          style={styles.shareButton}
+          accessibilityLabel="Share this search"
+          accessibilityRole="button"
+        >
           <Text style={styles.shareIcon}>↗</Text>
         </TouchableOpacity>
       </View>
@@ -274,8 +299,8 @@ export default function ResultsScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              tintColor="#8B6F47"
-              colors={['#8B6F47']}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
             />
           }
           ListEmptyComponent={
@@ -302,7 +327,7 @@ export default function ResultsScreen() {
         visible={showRefine}
         animationType="slide"
         transparent
-        onRequestClose={() => setShowRefine(false)}
+        onRequestClose={closeRefineModal}
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -311,7 +336,11 @@ export default function ResultsScreen() {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Refine Search</Text>
-              <TouchableOpacity onPress={() => setShowRefine(false)}>
+              <TouchableOpacity
+                onPress={closeRefineModal}
+                accessibilityLabel="Close refine modal"
+                accessibilityRole="button"
+              >
                 <Text style={styles.modalClose}>✕</Text>
               </TouchableOpacity>
             </View>
@@ -323,14 +352,22 @@ export default function ResultsScreen() {
             <TextInput
               style={styles.keywordInput}
               placeholder="e.g. corduroy, floral, oversized"
-              placeholderTextColor="#C4B5A5"
+              placeholderTextColor={colors.text.disabled}
               value={refineKeywords}
               onChangeText={setRefineKeywords}
               autoCapitalize="none"
               autoCorrect={false}
+              maxLength={100}
+              returnKeyType="search"
+              onSubmitEditing={handleRefine}
             />
 
-            <TouchableOpacity style={styles.refineSubmit} onPress={handleRefine}>
+            <TouchableOpacity
+              style={styles.refineSubmit}
+              onPress={handleRefine}
+              accessibilityLabel="Search again with new filters"
+              accessibilityRole="button"
+            >
               <Text style={styles.refineSubmitText}>Search again</Text>
             </TouchableOpacity>
           </View>
@@ -341,33 +378,31 @@ export default function ResultsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F0EB' },
-  header: { flexDirection: 'row', alignItems: 'center', padding: 16, paddingBottom: 8 },
-  backButton: { marginRight: 12 },
-  backText: { color: '#8B6F47', fontSize: 15 },
-  title: { flex: 1, fontSize: 20, fontWeight: '600', color: '#3D2B1F' },
-  saveButton: { paddingHorizontal: 16, paddingVertical: 8, backgroundColor: '#F0E8DE', borderRadius: 20 },
-  saveButtonText: { color: '#8B6F47', fontWeight: '600', fontSize: 14 },
-  savedLabel: { color: '#8B6F47', fontWeight: '600', fontSize: 14 },
-  shareButton: { marginLeft: 8, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: '#F0E8DE', borderRadius: 20 },
-  shareIcon: { fontSize: 16, color: '#8B6F47' },
-  disclosure: { fontSize: 11, color: '#C4B5A5', textAlign: 'center', paddingVertical: 8, paddingHorizontal: 16 },
-  grid: { padding: 8 },
+  container: { flex: 1, backgroundColor: colors.surface.background },
+  header: { flexDirection: 'row', alignItems: 'center', padding: spacing.lg, paddingBottom: spacing.sm },
+  backButton: { marginRight: spacing.md },
+  backText: { color: colors.primary, fontSize: 15 },
+  title: { flex: 1, fontSize: 20, fontWeight: '600', color: colors.text.primary },
+  saveButton: { paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, backgroundColor: colors.surface.secondary, borderRadius: borderRadius.pill },
+  saveButtonText: { color: colors.primary, fontWeight: '600', fontSize: 14 },
+  savedLabel: { color: colors.primary, fontWeight: '600', fontSize: 14 },
+  shareButton: { marginLeft: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, backgroundColor: colors.surface.secondary, borderRadius: borderRadius.pill },
+  shareIcon: { fontSize: 16, color: colors.primary },
+  disclosure: { fontSize: 11, color: colors.text.disabled, textAlign: 'center', paddingVertical: spacing.sm, paddingHorizontal: spacing.lg },
+  grid: { padding: spacing.sm },
   row: { justifyContent: 'space-between' },
-  errorContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
-  errorText: { color: '#C0392B', fontSize: 15, textAlign: 'center' },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
-  emptyTitle: { fontSize: 18, fontWeight: '600', color: '#3D2B1F', marginBottom: 12, marginTop: 20 },
-  emptyBody: { fontSize: 14, color: '#6B5B4E', textAlign: 'center', lineHeight: 22 },
-  refineButton: { marginLeft: 8, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: '#F0E8DE', borderRadius: 20 },
-  refineButtonText: { color: '#8B6F47', fontWeight: '600', fontSize: 14 },
+  emptyTitle: { ...typography.titleSmall, marginBottom: spacing.md, marginTop: spacing.xl },
+  emptyBody: { ...typography.body, textAlign: 'center' },
+  refineButton: { marginLeft: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, backgroundColor: colors.surface.secondary, borderRadius: borderRadius.pill },
+  refineButtonText: { color: colors.primary, fontWeight: '600', fontSize: 14 },
   modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
-  modalContent: { backgroundColor: '#FFF', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40 },
-  modalHeader: { flexDirection: 'row' as const, justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  modalTitle: { fontSize: 20, fontWeight: '600', color: '#3D2B1F' },
-  modalClose: { fontSize: 20, color: '#C4B5A5', padding: 4 },
-  modalLabel: { fontSize: 14, fontWeight: '600', color: '#3D2B1F', marginTop: 16, marginBottom: 8 },
-  keywordInput: { backgroundColor: '#F5F0EB', borderRadius: 12, padding: 14, fontSize: 15, color: '#3D2B1F', borderWidth: 1, borderColor: '#E0D8D0' },
-  refineSubmit: { backgroundColor: '#8B6F47', borderRadius: 14, padding: 16, alignItems: 'center' as const, marginTop: 24 },
-  refineSubmitText: { color: '#FFF', fontSize: 16, fontWeight: '600' },
+  modalContent: { backgroundColor: colors.surface.card, borderTopLeftRadius: borderRadius.pill, borderTopRightRadius: borderRadius.pill, padding: spacing.xxl, paddingBottom: 40 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xl },
+  modalTitle: { fontSize: 20, fontWeight: '600', color: colors.text.primary },
+  modalClose: { fontSize: 20, color: colors.text.disabled, padding: spacing.xs },
+  modalLabel: { fontSize: 14, fontWeight: '600', color: colors.text.primary, marginTop: spacing.lg, marginBottom: spacing.sm },
+  keywordInput: { backgroundColor: colors.surface.background, borderRadius: borderRadius.lg, padding: 14, fontSize: 15, color: colors.text.primary, borderWidth: 1, borderColor: colors.border.default },
+  refineSubmit: { backgroundColor: colors.primary, borderRadius: borderRadius.xl, padding: spacing.lg, alignItems: 'center', marginTop: spacing.xxl },
+  refineSubmitText: { color: colors.text.inverse, fontSize: 16, fontWeight: '600' },
 });

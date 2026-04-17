@@ -1,6 +1,6 @@
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
-
-const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL'] as const;
+import { SIZES } from '../lib/constants';
+import { colors, spacing, borderRadius, typography } from '../lib/theme';
 
 type Props = {
   value: string;
@@ -17,6 +17,9 @@ export function SizeSelector({ value, onChange }: Props) {
             key={size}
             style={[styles.chip, value === size && styles.chipSelected]}
             onPress={() => onChange(size)}
+            accessibilityLabel={`Size ${size}`}
+            accessibilityState={{ selected: value === size }}
+            accessibilityRole="button"
           >
             <Text style={[styles.chipText, value === size && styles.chipTextSelected]}>
               {size}
@@ -29,18 +32,18 @@ export function SizeSelector({ value, onChange }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { marginBottom: 8 },
-  label: { fontSize: 12, fontWeight: '600', color: '#9E9E9E', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 },
-  row: { flexDirection: 'row', gap: 8 },
+  container: { marginBottom: spacing.sm },
+  label: { ...typography.label, marginBottom: 10 },
+  row: { flexDirection: 'row', gap: spacing.sm },
   chip: {
     paddingHorizontal: 18,
     paddingVertical: 10,
-    borderRadius: 20,
+    borderRadius: borderRadius.pill,
     borderWidth: 1.5,
-    borderColor: '#D4C5B5',
-    backgroundColor: '#FFF',
+    borderColor: colors.border.strong,
+    backgroundColor: colors.surface.card,
   },
-  chipSelected: { backgroundColor: '#8B6F47', borderColor: '#8B6F47' },
-  chipText: { fontSize: 14, fontWeight: '500', color: '#3D2B1F' },
-  chipTextSelected: { color: '#FFF' },
+  chipSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
+  chipText: { fontSize: 14, fontWeight: '500', color: colors.text.primary },
+  chipTextSelected: { color: colors.text.inverse },
 });

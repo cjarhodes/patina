@@ -6,6 +6,10 @@ import { supabase } from './supabase';
 type EventName =
   | 'search_started'
   | 'search_completed'
+  | 'find_similar_started'
+  | 'find_similar_completed'
+  | 'refine_search_started'
+  | 'refine_search_completed'
   | 'listing_tapped'
   | 'listing_shared'
   | 'search_saved'
@@ -18,7 +22,7 @@ type EventName =
 
 type EventProps = Record<string, string | number | boolean | null>;
 
-export async function trackEvent(name: EventName, properties?: EventProps) {
+export async function trackEvent(name: EventName, properties?: EventProps): Promise<void> {
   try {
     const { data: { session } } = await supabase.auth.getSession();
     await supabase.from('analytics_events').insert({

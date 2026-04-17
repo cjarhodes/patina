@@ -1,17 +1,21 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { Platform } from '../types/listing';
+import { colors } from '../lib/theme';
 
 const PLATFORM_COLORS: Record<Platform, { bg: string; text: string; label: string }> = {
-  ebay: { bg: '#E53238', text: '#FFF', label: 'eBay' },
-  etsy: { bg: '#F56400', text: '#FFF', label: 'Etsy' },
+  ebay: { bg: colors.platform.ebay, text: colors.text.inverse, label: 'eBay' },
+  etsy: { bg: colors.platform.etsy, text: colors.text.inverse, label: 'Etsy' },
 };
 
-type Props = { platform: Platform };
+export type PlatformBadgeProps = { platform: Platform };
 
-export function PlatformBadge({ platform }: Props) {
+export function PlatformBadge({ platform }: PlatformBadgeProps) {
   const config = PLATFORM_COLORS[platform];
   return (
-    <View style={[styles.badge, { backgroundColor: config.bg }]}>
+    <View
+      style={[styles.badge, { backgroundColor: config.bg }]}
+      accessibilityLabel={`Listed on ${config.label}`}
+    >
       <Text style={[styles.text, { color: config.text }]}>{config.label}</Text>
     </View>
   );

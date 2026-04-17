@@ -17,6 +17,7 @@ import { SkeletonGrid } from '../../components/SkeletonCard';
 import { buildAffiliateUrl } from '../../lib/affiliateLinks';
 import { Listing } from '../../types/listing';
 import { useClickTracking } from '../../hooks/useClickTracking';
+import { colors, typography, spacing, borderRadius, shadows } from '../../lib/theme';
 
 export default function FavoritesScreen() {
   const { favorites, isLoading, toggleFavorite, isFavorited, refetch } = useFavorites();
@@ -55,8 +56,8 @@ export default function FavoritesScreen() {
       await Share.share({
         message: `Check out this vintage find on Patina: ${listing.title} - $${listing.price_usd.toFixed(2)} ${listing.listing_url}`,
       });
-    } catch {
-      // user cancelled
+    } catch (err) {
+      console.error('Share failed:', err);
     }
   }
 
@@ -85,6 +86,8 @@ export default function FavoritesScreen() {
               setCompareMode(!compareMode);
               setSelected([]);
             }}
+            accessibilityLabel={compareMode ? 'Cancel compare mode' : 'Compare items'}
+            accessibilityRole="button"
           >
             <Text style={[styles.compareToggleText, compareMode && styles.compareToggleTextActive]}>
               {compareMode ? 'Cancel' : 'Compare'}
@@ -102,7 +105,12 @@ export default function FavoritesScreen() {
           <Text style={styles.emptyBody}>
             Tap the heart on any listing to save it here.
           </Text>
-          <TouchableOpacity style={styles.cta} onPress={() => router.push('/(tabs)')}>
+          <TouchableOpacity
+            style={styles.cta}
+            onPress={() => router.push('/(tabs)')}
+            accessibilityLabel="Start a search"
+            accessibilityRole="button"
+          >
             <Text style={styles.ctaText}>Start a search</Text>
           </TouchableOpacity>
         </View>
@@ -117,13 +125,13 @@ export default function FavoritesScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              tintColor="#8B6F47"
-              colors={['#8B6F47']}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
             />
           }
           renderItem={({ item }) => {
             const listing = toListing(item);
-            const isSelected = selected.includes(listing.id);
+            const isItemSelected = selected.includes(listing.id);
             const priceDrop = item.last_known_price !== null && item.last_known_price < listing.price_usd
               ? listing.price_usd - item.last_known_price!
               : undefined;
@@ -142,7 +150,8 @@ export default function FavoritesScreen() {
                     });
                   }
                 }}
-                style={[compareMode && isSelected && styles.selectedCard]}
+                style={[compareMode && isItemSelected && styles.selectedCard]}
+                accessibilityLabel={compareMode ? `Select ${listing.title} for comparison` : undefined}
               >
                 <ResultCard
                   listing={priceDrop ? { ...listing, price_usd: item.last_known_price! } : listing}
@@ -166,6 +175,8 @@ export default function FavoritesScreen() {
             setCompareMode(false);
             setSelected([]);
           }}
+          accessibilityLabel="Compare selected items"
+          accessibilityRole="button"
         >
           <Text style={styles.compareFloatingText}>Compare these two</Text>
         </TouchableOpacity>
@@ -175,35 +186,45 @@ export default function FavoritesScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F0EB' },
-  header: { padding: 24, paddingBottom: 12, position: 'relative' },
-  title: { fontSize: 26, fontWeight: '600', color: '#3D2B1F' },
-  subtitle: { fontSize: 13, color: '#9E9E9E', marginTop: 4 },
-  grid: { padding: 8 },
+  container: { flex: 1, backgroundColor: colors.surface.background },
+  header: { padding: spacing.xxl, paddingBottom: spacing.md, position: 'relative' },
+  title: { ...typography.title },
+  subtitle: { fontSize: 13, color: colors.text.muted, marginTop: spacing.xs },
+  grid: { padding: spacing.sm },
   row: { justifyContent: 'space-between' },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
   emptyIcon: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#F0E8DE',
+    backgroundColor: colors.surface.secondary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
+    marginBottom: spacing.xl,
   },
   emptyHeart: {
     fontSize: 28,
-    color: '#C4B5A5',
+    color: colors.text.disabled,
   },
-  emptyTitle: { fontSize: 18, fontWeight: '600', color: '#3D2B1F', marginBottom: 12 },
-  emptyBody: { fontSize: 14, color: '#6B5B4E', textAlign: 'center', lineHeight: 22, marginBottom: 32 },
-  cta: { backgroundColor: '#8B6F47', borderRadius: 12, paddingVertical: 14, paddingHorizontal: 32 },
-  ctaText: { color: '#FFF', fontSize: 15, fontWeight: '600' },
-  compareToggle: { position: 'absolute', right: 24, top: 28, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 16, backgroundColor: '#F0E8DE' },
-  compareToggleActive: { backgroundColor: '#8B6F47' },
-  compareToggleText: { fontSize: 13, fontWeight: '600', color: '#8B6F47' },
-  compareToggleTextActive: { color: '#FFF' },
-  selectedCard: { borderWidth: 2, borderColor: '#8B6F47', borderRadius: 14 },
-  compareFloating: { position: 'absolute', bottom: 24, left: 24, right: 24, backgroundColor: '#8B6F47', borderRadius: 14, padding: 16, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 5 },
-  compareFloatingText: { color: '#FFF', fontSize: 16, fontWeight: '600' },
+  emptyTitle: { ...typography.titleSmall, marginBottom: spacing.md },
+  emptyBody: { ...typography.body, textAlign: 'center', marginBottom: spacing.xxxl },
+  cta: { backgroundColor: colors.primary, borderRadius: borderRadius.lg, paddingVertical: 14, paddingHorizontal: spacing.xxxl },
+  ctaText: { color: colors.text.inverse, fontSize: 15, fontWeight: '600' },
+  compareToggle: { position: 'absolute', right: spacing.xxl, top: 28, paddingHorizontal: 14, paddingVertical: 6, borderRadius: borderRadius.lg, backgroundColor: colors.surface.secondary },
+  compareToggleActive: { backgroundColor: colors.primary },
+  compareToggleText: { fontSize: 13, fontWeight: '600', color: colors.primary },
+  compareToggleTextActive: { color: colors.text.inverse },
+  selectedCard: { borderWidth: 2, borderColor: colors.primary, borderRadius: borderRadius.xl },
+  compareFloating: {
+    position: 'absolute',
+    bottom: spacing.xxl,
+    left: spacing.xxl,
+    right: spacing.xxl,
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.xl,
+    padding: spacing.lg,
+    alignItems: 'center',
+    ...shadows.elevated,
+  },
+  compareFloatingText: { color: colors.text.inverse, fontSize: 16, fontWeight: '600' },
 });

@@ -22,6 +22,7 @@ import { AnalyzingOverlay } from '../../components/AnalyzingOverlay';
 import { SearchHistoryCard } from '../../components/SearchHistoryCard';
 import { TrendingChip } from '../../components/TrendingChip';
 import { StyleFeedCard } from '../../components/StyleFeedCard';
+import { colors, typography, spacing, borderRadius } from '../../lib/theme';
 
 export default function HomeScreen() {
   const [selectedSize, setSelectedSize] = useState('M');
@@ -33,7 +34,7 @@ export default function HomeScreen() {
 
   const isLoading = isAnalyzing || isSearching;
 
-  function openFeedItem(listing: any) {
+  function openFeedItem(listing: { listing_url: string }) {
     Linking.openURL(listing.listing_url);
   }
 
@@ -96,10 +97,20 @@ export default function HomeScreen() {
             <SizeSelector value={selectedSize} onChange={setSelectedSize} />
 
             <View style={styles.actions}>
-              <TouchableOpacity style={styles.primaryAction} onPress={pickFromLibrary}>
+              <TouchableOpacity
+                style={styles.primaryAction}
+                onPress={pickFromLibrary}
+                accessibilityLabel="Choose a photo from your library"
+                accessibilityRole="button"
+              >
                 <Text style={styles.primaryActionText}>Choose from Photos</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.secondaryAction} onPress={takePhoto}>
+              <TouchableOpacity
+                style={styles.secondaryAction}
+                onPress={takePhoto}
+                accessibilityLabel="Take a photo with camera"
+                accessibilityRole="button"
+              >
                 <Text style={styles.secondaryActionText}>Take a Photo</Text>
               </TouchableOpacity>
             </View>
@@ -110,7 +121,7 @@ export default function HomeScreen() {
 
             {history.length > 0 && (
               <View style={styles.historySection}>
-                <Text style={styles.historyLabel}>Recent searches</Text>
+                <Text style={styles.sectionLabel}>Recent searches</Text>
                 <FlatList
                   data={history}
                   keyExtractor={(item) => item.id}
@@ -128,7 +139,7 @@ export default function HomeScreen() {
 
             {feed.length > 0 && (
               <View style={styles.feedSection}>
-                <Text style={styles.feedLabel}>For your style</Text>
+                <Text style={styles.sectionLabel}>For your style</Text>
                 <FlatList
                   data={feed}
                   keyExtractor={(item) => item.id}
@@ -146,7 +157,7 @@ export default function HomeScreen() {
 
             {trending.length > 0 && (
               <View style={styles.trendingSection}>
-                <Text style={styles.trendingLabel}>Trending now</Text>
+                <Text style={styles.sectionLabel}>Trending now</Text>
                 <FlatList
                   data={trending}
                   keyExtractor={(item, i) => `${item.garment_type}-${i}`}
@@ -156,7 +167,7 @@ export default function HomeScreen() {
                     <TrendingChip
                       item={item}
                       onPress={() => {
-                        // For now, trending chips are informational — they show what's popular
+                        // Trending chips are informational — show what's popular
                         // In future, they could trigger a text-based search
                       }}
                     />
@@ -176,62 +187,39 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F0EB' },
-  inner: { flexGrow: 1, padding: 24 },
-  header: { paddingVertical: 16 },
-  logo: { fontSize: 28, fontWeight: '300', letterSpacing: 5, color: '#3D2B1F' },
-  prompt: { fontSize: 22, fontWeight: '600', color: '#3D2B1F', marginTop: 32, marginBottom: 24, lineHeight: 30 },
-  loadingSection: { alignItems: 'center', marginTop: 24 },
+  container: { flex: 1, backgroundColor: colors.surface.background },
+  inner: { flexGrow: 1, padding: spacing.xxl },
+  header: { paddingVertical: spacing.lg },
+  logo: { ...typography.logo, fontSize: 28, letterSpacing: 5 },
+  prompt: { fontSize: 22, fontWeight: '600', color: colors.text.primary, marginTop: spacing.xxxl, marginBottom: spacing.xxl, lineHeight: 30 },
+  loadingSection: { alignItems: 'center', marginTop: spacing.xxl },
   previewImage: {
     width: 160,
     height: 213,
-    borderRadius: 12,
-    backgroundColor: '#E0D8D0',
+    borderRadius: borderRadius.lg,
+    backgroundColor: colors.border.default,
   },
-  actions: { gap: 12, marginVertical: 32 },
+  actions: { gap: spacing.md, marginVertical: spacing.xxxl },
   primaryAction: {
-    backgroundColor: '#8B6F47',
-    borderRadius: 14,
-    padding: 20,
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.xl,
+    padding: spacing.xl,
     alignItems: 'center',
   },
-  primaryActionText: { color: '#FFF', fontSize: 17, fontWeight: '600' },
+  primaryActionText: { color: colors.text.inverse, fontSize: 17, fontWeight: '600' },
   secondaryAction: {
-    backgroundColor: '#FFF',
-    borderRadius: 14,
-    padding: 20,
+    backgroundColor: colors.surface.card,
+    borderRadius: borderRadius.xl,
+    padding: spacing.xl,
     alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: '#D4C5B5',
+    borderColor: colors.border.strong,
   },
-  secondaryActionText: { color: '#3D2B1F', fontSize: 17, fontWeight: '500' },
-  error: { color: '#C0392B', fontSize: 14, textAlign: 'center', marginTop: 16 },
-  historySection: { marginTop: 8, marginBottom: 16 },
-  historyLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#9E9E9E',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 12,
-  },
-  feedSection: { marginTop: 16, marginBottom: 8 },
-  feedLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#9E9E9E',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 12,
-  },
-  trendingSection: { marginTop: 16, marginBottom: 16 },
-  trendingLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#9E9E9E',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 12,
-  },
-  tip: { color: '#9E9E9E', fontSize: 13, textAlign: 'center', marginTop: 'auto', paddingTop: 40, lineHeight: 20 },
+  secondaryActionText: { color: colors.text.primary, fontSize: 17, fontWeight: '500' },
+  error: { color: colors.functional.error, fontSize: 14, textAlign: 'center', marginTop: spacing.lg },
+  historySection: { marginTop: spacing.sm, marginBottom: spacing.lg },
+  feedSection: { marginTop: spacing.lg, marginBottom: spacing.sm },
+  trendingSection: { marginTop: spacing.lg, marginBottom: spacing.lg },
+  sectionLabel: { ...typography.label, marginBottom: spacing.md },
+  tip: { color: colors.text.muted, fontSize: 13, textAlign: 'center', marginTop: 'auto', paddingTop: 40, lineHeight: 20 },
 });

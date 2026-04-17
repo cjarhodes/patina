@@ -22,31 +22,22 @@ export function useSearchHistory() {
     queryKey: ['search-history', session?.user.id],
     enabled: !!session,
     queryFn: async () => {
+      // Fetch searches with listing counts in a single query using a subquery
+      // This avoids the N+1 pattern of fetching count per search
       const { data, error } = await supabase
         .from('searches')
-        .select('id, image_storage_path, style_signals, size_filter, created_at')
+        .select('id, image_storage_path, style_signals, size_filter, created_at, listings(count)')
         .eq('user_id', session!.user.id)
         .order('created_at', { ascending: false })
         .limit(10);
 
       if (error) throw error;
 
-      // Get listing counts
-      const results = await Promise.all(
-        (data ?? []).map(async (search) => {
-          const { count } = await supabase
-            .from('listings')
-            .select('*', { count: 'exact', head: true })
-            .eq('search_id', search.id);
-
-          return {
-            ...search,
-            listing_count: count ?? 0,
-          } as SearchHistoryItem;
-        })
-      );
-
-      return results;
+      return (data ?? []).map((search) => ({
+        ...search,
+        // Supabase returns count as [{ count: N }] when using select('listings(count)')
+        listing_count: (search.listings as any)?.[0]?.count ?? 0,
+      })) as SearchHistoryItem[];
     },
   });
 

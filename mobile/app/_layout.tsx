@@ -6,6 +6,8 @@ import * as Linking from 'expo-linking';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../hooks/useAuthStore';
 import { usePushNotifications } from '../hooks/usePushNotifications';
+import { ErrorBoundary } from '../components/ErrorBoundary';
+import { UUID_REGEX } from '../lib/constants';
 
 const queryClient = new QueryClient();
 
@@ -17,15 +19,21 @@ export default function RootLayout() {
     async function checkOnboardingAndRoute(session: any) {
       if (!session) return;
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('onboarding_complete')
-        .eq('id', session.user.id)
-        .single();
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('onboarding_complete')
+          .eq('id', session.user.id)
+          .single();
 
-      if (!profile?.onboarding_complete) {
-        router.replace('/(auth)/onboarding');
-      } else {
+        if (!profile?.onboarding_complete) {
+          router.replace('/(auth)/onboarding');
+        } else {
+          router.replace('/(tabs)');
+        }
+      } catch (err) {
+        console.error('Onboarding check failed:', err);
+        // Fall through to tabs on error — better than a blank screen
         router.replace('/(tabs)');
       }
     }
@@ -57,7 +65,8 @@ export default function RootLayout() {
       const parsed = Linking.parse(event.url);
       if (parsed.path?.startsWith('results/')) {
         const searchId = parsed.path.replace('results/', '');
-        if (searchId) {
+        // Validate searchId is a UUID before navigating
+        if (searchId && UUID_REGEX.test(searchId)) {
           router.push(`/results/${searchId}`);
         }
       }
@@ -74,15 +83,17 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <StatusBar style="dark" />
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(auth)" />
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="results/[searchId]" options={{ presentation: 'card' }} />
-        <Stack.Screen name="compare" options={{ presentation: 'card' }} />
-        <Stack.Screen name="style-guide" options={{ presentation: 'card' }} />
-      </Stack>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <StatusBar style="dark" />
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(auth)" />
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="results/[searchId]" options={{ presentation: 'card' }} />
+          <Stack.Screen name="compare" options={{ presentation: 'card' }} />
+          <Stack.Screen name="style-guide" options={{ presentation: 'card' }} />
+        </Stack>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }

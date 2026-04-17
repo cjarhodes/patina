@@ -14,6 +14,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { SizeSelector } from '../../components/SizeSelector';
+import { colors, typography, spacing, borderRadius } from '../../lib/theme';
 
 type ShoppingFor = 'womens' | 'mens' | 'both';
 
@@ -42,16 +43,17 @@ export default function ProfileScreen() {
     },
   });
 
-  async function updateProfile(updates: { size_label?: string; shopping_for?: ShoppingFor }) {
+  async function updateProfile(updates: { size_label?: string; shopping_for?: ShoppingFor }): Promise<void> {
     setSavingSize(true);
     try {
       const { error } = await supabase
         .from('profiles')
         .upsert({ id: session!.user.id, ...updates });
       if (error) throw error;
-      queryClient.invalidateQueries({ queryKey: ['profile'] });
-    } catch (err: any) {
-      Alert.alert('Error', err.message);
+      queryClient.invalidateQueries({ queryKey: ['profile', session?.user.id] });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to update profile';
+      Alert.alert('Update failed', message);
     } finally {
       setSavingSize(false);
     }
@@ -83,7 +85,7 @@ export default function ProfileScreen() {
         <View style={styles.section}>
           <Text style={styles.label}>I shop for</Text>
           {isLoading ? (
-            <ActivityIndicator color="#8B6F47" style={{ marginTop: 16 }} />
+            <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.lg }} />
           ) : (
             <View style={styles.optionRow}>
               {SHOPPING_OPTIONS.map((opt) => (
@@ -91,6 +93,9 @@ export default function ProfileScreen() {
                   key={opt.value}
                   style={[styles.optionButton, profile?.shopping_for === opt.value && styles.optionButtonSelected]}
                   onPress={() => updateProfile({ shopping_for: opt.value })}
+                  accessibilityLabel={`Shop for ${opt.label}`}
+                  accessibilityState={{ selected: profile?.shopping_for === opt.value }}
+                  accessibilityRole="button"
                 >
                   <Text style={[styles.optionText, profile?.shopping_for === opt.value && styles.optionTextSelected]}>
                     {opt.label}
@@ -99,18 +104,16 @@ export default function ProfileScreen() {
               ))}
             </View>
           )}
+          {savingSize && <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.md }} />}
         </View>
 
         <View style={styles.section}>
           <Text style={styles.label}>My size</Text>
           <Text style={styles.note}>We use this to filter vintage results to fit you.</Text>
           {isLoading ? (
-            <ActivityIndicator color="#8B6F47" style={{ marginTop: 16 }} />
+            <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.lg }} />
           ) : (
-            <View>
-              <SizeSelector value={profile?.size_label ?? 'M'} onChange={(size) => updateProfile({ size_label: size })} />
-              {savingSize && <ActivityIndicator color="#8B6F47" style={{ marginTop: 12 }} />}
-            </View>
+            <SizeSelector value={profile?.size_label ?? 'M'} onChange={(size) => updateProfile({ size_label: size })} />
           )}
         </View>
 
@@ -118,12 +121,12 @@ export default function ProfileScreen() {
           <View style={styles.section}>
             <Text style={styles.label}>My style</Text>
             <View style={styles.tagRow}>
-              {(profile.style_preferences ?? []).map((s: string) => (
+              {(profile?.style_preferences ?? []).map((s: string) => (
                 <View key={s} style={styles.tag}>
                   <Text style={styles.tagText}>{s}</Text>
                 </View>
               ))}
-              {(profile.favorite_decades ?? []).map((d: string) => (
+              {(profile?.favorite_decades ?? []).map((d: string) => (
                 <View key={d} style={styles.tag}>
                   <Text style={styles.tagText}>{d}</Text>
                 </View>
@@ -149,52 +152,52 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F0EB' },
-  inner: { flexGrow: 1, padding: 24 },
-  title: { fontSize: 26, fontWeight: '600', color: '#3D2B1F', marginBottom: 32 },
-  section: { marginBottom: 32 },
-  label: { fontSize: 12, fontWeight: '600', color: '#9E9E9E', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 },
-  value: { fontSize: 16, color: '#3D2B1F' },
-  note: { fontSize: 13, color: '#6B5B4E', marginBottom: 16 },
+  container: { flex: 1, backgroundColor: colors.surface.background },
+  inner: { flexGrow: 1, padding: spacing.xxl },
+  title: { ...typography.title, marginBottom: spacing.xxxl },
+  section: { marginBottom: spacing.xxxl },
+  label: { ...typography.label, marginBottom: spacing.sm },
+  value: { fontSize: 16, color: colors.text.primary },
+  note: { fontSize: 13, color: colors.text.secondary, marginBottom: spacing.lg },
   optionRow: { flexDirection: 'row', gap: 10 },
   optionButton: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: spacing.md,
     borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: '#D4C5B5',
+    borderColor: colors.border.strong,
     alignItems: 'center',
-    backgroundColor: '#FFF',
+    backgroundColor: colors.surface.card,
   },
-  optionButtonSelected: { borderColor: '#8B6F47', backgroundColor: '#8B6F47' },
-  optionText: { fontSize: 14, fontWeight: '500', color: '#3D2B1F' },
-  optionTextSelected: { color: '#FFF' },
+  optionButtonSelected: { borderColor: colors.primary, backgroundColor: colors.primary },
+  optionText: { fontSize: 14, fontWeight: '500', color: colors.text.primary },
+  optionTextSelected: { color: colors.text.inverse },
   footer: { marginTop: 'auto', paddingTop: 40 },
   signOutButton: {
     borderWidth: 1,
-    borderColor: '#D4C5B5',
-    borderRadius: 12,
-    padding: 16,
+    borderColor: colors.border.strong,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: spacing.xxl,
   },
   styleGuideButton: {
     borderWidth: 1,
-    borderColor: '#D4C5B5',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center' as const,
-    marginBottom: 12,
+    borderColor: colors.border.strong,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    alignItems: 'center',
+    marginBottom: spacing.md,
   },
-  styleGuideText: { color: '#8B6F47', fontSize: 15, fontWeight: '500' },
-  signOutText: { color: '#C0392B', fontSize: 15, fontWeight: '500' },
-  disclosure: { fontSize: 11, color: '#C4B5A5', textAlign: 'center', lineHeight: 18 },
+  styleGuideText: { color: colors.primary, fontSize: 15, fontWeight: '500' },
+  signOutText: { color: colors.functional.error, fontSize: 15, fontWeight: '500' },
+  disclosure: { fontSize: 11, color: colors.text.disabled, textAlign: 'center', lineHeight: 18 },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   tag: {
-    backgroundColor: '#F0E8DE',
-    borderRadius: 20,
-    paddingHorizontal: 12,
+    backgroundColor: colors.surface.secondary,
+    borderRadius: borderRadius.pill,
+    paddingHorizontal: spacing.md,
     paddingVertical: 6,
   },
-  tagText: { fontSize: 13, color: '#8B6F47', fontWeight: '500', textTransform: 'capitalize' },
+  tagText: { fontSize: 13, color: colors.primary, fontWeight: '500', textTransform: 'capitalize' },
 });
