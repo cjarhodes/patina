@@ -36,7 +36,7 @@ export default function CompareScreen() {
   const b = listings?.find((l) => l.id === listingB);
 
   function openListing(listing: Listing) {
-    const url = buildAffiliateUrl(listing.listing_url, listing.platform);
+    const url = buildAffiliateUrl(listing.listing_url, listing.platform, 'compare');
     Linking.openURL(url);
   }
 

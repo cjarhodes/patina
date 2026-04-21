@@ -138,7 +138,7 @@ export default function ResultsScreen() {
   }
 
   async function openListing(listing: Listing) {
-    const url = buildAffiliateUrl(listing.listing_url, listing.platform);
+    const url = buildAffiliateUrl(listing.listing_url, listing.platform, `search-${searchId}`);
     trackClick({
       listingId: listing.id,
       searchId: searchId!,

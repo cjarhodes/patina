@@ -37,7 +37,7 @@ export default function FavoritesScreen() {
   }
 
   async function openListing(listing: Listing) {
-    const url = buildAffiliateUrl(listing.listing_url, listing.platform);
+    const url = buildAffiliateUrl(listing.listing_url, listing.platform, 'favorites');
     trackClick({
       listingId: listing.id,
       searchId: listing.search_id,
