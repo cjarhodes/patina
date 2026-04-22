@@ -51,10 +51,65 @@ const EBAY_CATEGORY: Record<string, string> = {
   both: '11450',    // Clothing, Shoes & Accessories (broader)
 };
 
+// ---- eBay OAuth Token Cache ----
+// Module-scoped cache persists across warm invocations of the same edge function instance.
+// Tokens are valid for 2 hours (7200s); refresh 5 minutes before expiry.
+let cachedEbayToken: { token: string; expiresAt: number } | null = null;
+
+async function getEbayAccessToken(): Promise<string | null> {
+  const appId = Deno.env.get('EBAY_APP_ID');
+  const certId = Deno.env.get('EBAY_CERT_ID');
+  if (!appId || !certId) return null;
+
+  // Return cached token if still valid (with 5-min buffer)
+  const now = Date.now();
+  if (cachedEbayToken && cachedEbayToken.expiresAt > now + 5 * 60 * 1000) {
+    return cachedEbayToken.token;
+  }
+
+  // Exchange credentials for access token via Client Credentials grant
+  const credentials = btoa(`${appId}:${certId}`);
+  const res = await fetch('https://api.ebay.com/identity/v1/oauth2/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Authorization': `Basic ${credentials}`,
+    },
+    body: new URLSearchParams({
+      grant_type: 'client_credentials',
+      scope: 'https://api.ebay.com/oauth/api_scope',
+    }),
+    signal: AbortSignal.timeout(8000),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    console.error(`eBay OAuth error ${res.status}: ${errText}`);
+    return null;
+  }
+
+  const data = await res.json();
+  if (!data.access_token) return null;
+
+  cachedEbayToken = {
+    token: data.access_token,
+    expiresAt: now + (data.expires_in ?? 7200) * 1000,
+  };
+
+  return cachedEbayToken.token;
+}
+
 // ---- eBay Search ----
-async function searchEbay(signals: StyleSignal, sizeFilter: string, shoppingFor = 'womens'): Promise<Listing[]> {
-  const EBAY_TOKEN = Deno.env.get('EBAY_OAUTH_TOKEN');
-  if (!EBAY_TOKEN) return [];
+async function searchEbay(
+  signals: StyleSignal,
+  sizeFilter: string,
+  shoppingFor = 'womens',
+): Promise<Listing[]> {
+  const token = await getEbayAccessToken();
+  if (!token) {
+    console.warn('No eBay access token available — skipping eBay search');
+    return [];
+  }
 
   const vintageSizes = getVintageSizeRange(sizeFilter);
   const query = [
@@ -72,16 +127,24 @@ async function searchEbay(signals: StyleSignal, sizeFilter: string, shoppingFor 
     filter: `conditionIds:{3000|1500|2500}`, // Pre-owned conditions
   });
 
+  console.log(`eBay search query: "${query}"`);
   const res = await fetch(`https://api.ebay.com/buy/browse/v1/item_summary/search?${params}`, {
     headers: {
-      'Authorization': `Bearer ${EBAY_TOKEN}`,
+      'Authorization': `Bearer ${token}`,
       'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US',
       'Content-Type': 'application/json',
     },
     signal: AbortSignal.timeout(8000),
   });
 
-  if (!res.ok) return [];
+  if (!res.ok) {
+    const errText = await res.text();
+    console.error(`eBay API error ${res.status}: ${errText}`);
+    // If token was rejected, invalidate cache so next call refreshes
+    if (res.status === 401) cachedEbayToken = null;
+    return [];
+  }
+
   const data = await res.json();
 
   return (data.itemSummaries ?? [])
@@ -311,12 +374,16 @@ serve(async (req) => {
       searchEtsy(style_signals, size_filter ?? 'M', shopping_for ?? 'womens'),
     ]);
 
+    const ebayCount = ebayResults.status === 'fulfilled' ? ebayResults.value.length : 0;
+    const etsyCount = etsyResults.status === 'fulfilled' ? etsyResults.value.length : 0;
+    console.log(`eBay returned ${ebayCount} listings, Etsy returned ${etsyCount}`);
+
     let allListings: Listing[] = [
       ...(ebayResults.status === 'fulfilled' ? ebayResults.value : []),
       ...(etsyResults.status === 'fulfilled' ? etsyResults.value : []),
     ];
 
-    // Fallback mock listings when both APIs return nothing (e.g. pending approval)
+    // Fallback mock listings when both APIs return nothing (e.g. both keys missing / both rate-limited)
     if (allListings.length === 0) {
       const garment = style_signals?.garment_type ?? 'clothing';
       const color = style_signals?.dominant_colors?.[0] ?? 'neutral';
@@ -427,10 +494,6 @@ serve(async (req) => {
 
     // Persist listings to DB
     if (scored.length > 0) {
-      const serviceClient = createClient(
-        Deno.env.get('SUPABASE_URL')!,
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-      );
       await serviceClient.from('listings').insert(
         scored.map((l) => ({ ...l, search_id: searchRecord.id }))
       );
